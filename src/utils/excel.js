@@ -103,17 +103,36 @@ export async function handleExcelImport(arrayBuffer, getNextDonorId) {
     const leftCols = { sr: 1, name: 2, address: 3, contact: 4, blood: 5, hiv: 6, hcv: 7, hbsag: 8, vdrl: 9, mp: 10, date: 11 };
     const rightCols = { sr: 15, name: 16, relative: 17, address: 18, contact: 19, blood: 20, hiv: 21, hcv: 22, hbsag: 23, vdrl: 24, mp: 25, date: 26 };
 
-    // Read entire Left Table (2024-25) first
+    // Dynamically detect Left and Right Financial Years from spreadsheet titles/headers (rows 1-3)
+    let leftFY = '2024-25';
+    let rightFY = '2025-26';
+    for (let r = 1; r <= 3; r++) {
+      const row = worksheet.getRow(r);
+      row.eachCell(cell => {
+        const valStr = String(cell.value || '');
+        const match = valStr.match(/\b(\d{4})\s*-\s*(\d{2})\b/);
+        if (match) {
+          const fyStr = `${match[1]}-${match[2]}`;
+          if (cell.col <= 14) {
+            leftFY = fyStr;
+          } else {
+            rightFY = fyStr;
+          }
+        }
+      });
+    }
+
+    // Read entire Left Table first
     worksheet.eachRow((row, rowNumber) => {
       if (rowNumber < 4) return;
-      const leftDonor = parseSide(row, leftCols, '2024-25');
+      const leftDonor = parseSide(row, leftCols, leftFY);
       if (leftDonor) parsedImport.push(leftDonor);
     });
 
-    // Read entire Right Table (2025-26) second
+    // Read entire Right Table second
     worksheet.eachRow((row, rowNumber) => {
       if (rowNumber < 4) return;
-      const rightDonor = parseSide(row, rightCols, '2025-26');
+      const rightDonor = parseSide(row, rightCols, rightFY);
       if (rightDonor) parsedImport.push(rightDonor);
     });
   } else {

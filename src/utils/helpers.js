@@ -67,7 +67,12 @@ export function cleanBloodGroup(bg) {
 
 export function parseExcelDate(cell) {
   if (!cell || cell.value === null || cell.value === undefined) return '';
-  const val = cell.value;
+  let val = cell.value;
+
+  // Handle ExcelJS formula cells
+  if (val && typeof val === 'object' && 'result' in val) {
+    val = val.result;
+  }
 
   if (val instanceof Date) {
     const y = val.getFullYear();
@@ -76,22 +81,52 @@ export function parseExcelDate(cell) {
     return `${y}-${m}-${d}`;
   }
 
-  const str = String(val).trim();
+  const str = String(val || '').trim();
   if (!str || str.toLowerCase() === 'prev.' || str.toLowerCase() === 'current' || str.toLowerCase() === 'date') return '';
 
-  const dotsMatch = str.match(/^(\d{1,2})[\./](\d{1,2})[\./](\d{2,4})$/);
-  if (dotsMatch) {
-    let d = dotsMatch[1].padStart(2, '0');
-    let m = dotsMatch[2].padStart(2, '0');
-    let y = dotsMatch[3];
-    if (y.length === 2) {
-      y = '20' + y;
-    }
+  // 1. Handle YYYY-MM-DD or YYYY/MM/DD or YYYY.MM.DD
+  const isoMatch = str.match(/^(\d{4})[-/.](\d{2})[-/.](\d{2})/);
+  if (isoMatch) {
+    return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
+  }
+
+  // 2. Handle DD-MM-YYYY or DD/MM/YYYY or DD.MM.YYYY
+  const dmyMatch = str.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
+  if (dmyMatch) {
+    const d = dmyMatch[1].padStart(2, '0');
+    const m = dmyMatch[2].padStart(2, '0');
+    const y = dmyMatch[3];
     return `${y}-${m}-${d}`;
   }
 
-  const isoMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (isoMatch) return str.substring(0, 10);
+  // 3. Handle DD-MM-YY or DD/MM/YY or DD.MM.YY (2-digit year)
+  const dmy2Match = str.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2})$/);
+  if (dmy2Match) {
+    const d = dmy2Match[1].padStart(2, '0');
+    const m = dmy2Match[2].padStart(2, '0');
+    let y = dmy2Match[3];
+    y = '20' + y;
+    return `${y}-${m}-${d}`;
+  }
+
+  // 4. Handle text month names like "15-Jun-2024" or "15 Jun 2024" or "15-June-24"
+  const monthsMap = {
+    jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
+    jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12'
+  };
+  const textMatch = str.match(/^(\d{1,2})[- ]([A-Za-z]{3,9})[- ](\d{2,4})$/);
+  if (textMatch) {
+    const d = textMatch[1].padStart(2, '0');
+    const mStr = textMatch[2].toLowerCase().substring(0, 3);
+    const m = monthsMap[mStr];
+    if (m) {
+      let y = textMatch[3];
+      if (y.length === 2) {
+        y = '20' + y;
+      }
+      return `${y}-${m}-${d}`;
+    }
+  }
 
   return str;
 }
@@ -168,6 +203,9 @@ export function getNormalizedDonorName(name) {
 
 export function isSamePerson(d1, d2) {
   if (!d1 || !d2) return false;
+  if (d1 === d2) return true;
+  if (d1.id && d2.id && d1.id === d2.id) return true;
+
   const name1 = getNormalizedDonorName(d1.name);
   const name2 = getNormalizedDonorName(d2.name);
   if (name1 !== name2) return false;

@@ -4,6 +4,7 @@ import Dashboard from './components/Dashboard';
 import DonorRegistry from './components/DonorRegistry';
 import ImportExport from './components/ImportExport';
 import { useDonors } from './hooks/useDonors';
+import { getFinancialYear } from './utils/helpers';
 
 function App() {
   const { 
@@ -98,6 +99,39 @@ function App() {
     localStorage.removeItem('bloodbank_admin_user');
   };
 
+  // Wrappers to automatically select/sync the active financial year on new data entry or import
+  const handleAddDonor = useCallback(async (donorData) => {
+    const newDonor = await addDonor(donorData);
+    if (newDonor && newDonor.financialYear) {
+      setFinancialYear(newDonor.financialYear);
+    }
+    return newDonor;
+  }, [addDonor]);
+
+  const handleUpdateDonor = useCallback(async (id, donorData, isEditMode) => {
+    const success = await updateDonor(id, donorData, isEditMode);
+    if (success) {
+      const newFY = getFinancialYear(donorData.lastDonationDate);
+      if (newFY) {
+        setFinancialYear(newFY);
+      }
+    }
+    return success;
+  }, [updateDonor]);
+
+  const handleProcessImportedDonorsList = useCallback(async (parsedList) => {
+    const result = await processImportedDonorsList(parsedList);
+    const fySet = new Set();
+    parsedList.forEach(d => {
+      if (d.financialYear) fySet.add(d.financialYear);
+    });
+    const sortedFYs = Array.from(fySet).sort((a, b) => b.localeCompare(a));
+    if (sortedFYs.length > 0) {
+      setFinancialYear(sortedFYs[0]);
+    }
+    return result;
+  }, [processImportedDonorsList]);
+
   // Helper for sequential ID calculation
   const getNextDonorId = useCallback(() => {
     return donors.reduce((max, d) => {
@@ -170,8 +204,8 @@ function App() {
           <DonorRegistry 
             donors={donors}
             financialYear={financialYear}
-            addDonor={addDonor}
-            updateDonor={updateDonor}
+            addDonor={handleAddDonor}
+            updateDonor={handleUpdateDonor}
             deleteDonor={deleteDonor}
             user={user}
             onLoginClick={() => setIsLoginOpen(true)}
@@ -181,7 +215,7 @@ function App() {
         {activeTab === 'importexport' && (
           <ImportExport 
             donors={donors}
-            processImportedDonorsList={processImportedDonorsList}
+            processImportedDonorsList={handleProcessImportedDonorsList}
             getNextDonorId={getNextDonorId}
           />
         )}
