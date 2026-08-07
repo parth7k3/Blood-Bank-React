@@ -154,13 +154,13 @@ export function useDonors(user) {
   const resetDatabase = useCallback(async () => {
     try {
       await api.resetDatabase();
-      await fetchDonors();
-      await fetchCamps();
+      setDonors([]);
+      setCamps([]);
     } catch (err) {
       console.error("Failed to reset database", err);
       throw err;
     }
-  }, [fetchDonors, fetchCamps]);
+  }, []);
 
   return {
     donors,
