@@ -156,7 +156,8 @@ function App() {
   // Helper for sequential ID calculation
   const getNextDonorId = useCallback(() => {
     return donors.reduce((max, d) => {
-      const match = d.id.match(/^D-(\d+)$/);
+      const idStr = String(d.id || '');
+      const match = idStr.match(/^D-(\d+)$/);
       return match ? Math.max(max, parseInt(match[1], 10)) : max;
     }, 1000) + 1;
   }, [donors]);

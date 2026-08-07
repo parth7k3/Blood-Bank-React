@@ -26,7 +26,8 @@ function DonorModal({ isOpen, onClose, onSave, donor, camps = [] }) {
   // Hydrate fields when editing a donor profile
   useEffect(() => {
     if (donor) {
-      const match = donor.id ? donor.id.match(/^D-(\d+)$/) : null;
+      const idStr = String(donor.id || '');
+      const match = idStr.match(/^D-(\d+)$/);
       setSrNo(match ? parseInt(match[1], 10).toString() : '');
       setName(donor.name || '');
       setRelativeName(donor.relativeName || '');
