@@ -74,11 +74,11 @@ function DonorRegistry({
       // Search keyword filter
       if (search.trim()) {
         const query = search.toLowerCase();
-        const idMatch = donor.id ? donor.id.toLowerCase().includes(query) : false;
-        const nameMatch = donor.name ? donor.name.toLowerCase().includes(query) : false;
-        const contactMatch = donor.contact ? donor.contact.includes(query) : false;
-        const relativeMatch = donor.relativeName ? donor.relativeName.toLowerCase().includes(query) : false;
-        const addressMatch = donor.address ? donor.address.toLowerCase().includes(query) : false;
+        const idMatch = donor.id ? String(donor.id).toLowerCase().includes(query) : false;
+        const nameMatch = donor.name ? String(donor.name).toLowerCase().includes(query) : false;
+        const contactMatch = donor.contact ? String(donor.contact).includes(query) : false;
+        const relativeMatch = donor.relativeName ? String(donor.relativeName).toLowerCase().includes(query) : false;
+        const addressMatch = donor.address ? String(donor.address).toLowerCase().includes(query) : false;
         if (!idMatch && !nameMatch && !contactMatch && !relativeMatch && !addressMatch) return false;
       }
 

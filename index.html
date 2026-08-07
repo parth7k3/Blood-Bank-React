@@ -7,6 +7,14 @@
     <title>blood-bank-react</title>
   </head>
   <body>
+    <script>
+      window.addEventListener('error', function(e) {
+        const errorDiv = document.createElement('div');
+        errorDiv.style.cssText = 'color:red; font-size: 20px; z-index:9999; position:absolute; top:0; background: black; padding: 20px;';
+        errorDiv.innerHTML = e.message + '<br>' + e.filename + ':' + e.lineno;
+        document.body.appendChild(errorDiv);
+      });
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

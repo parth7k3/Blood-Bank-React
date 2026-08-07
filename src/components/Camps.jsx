@@ -18,7 +18,7 @@ export default function Camps({ camps, donors, onAddCamp, onEditCamp, onDeleteCa
     }
 
     const safeCamps = Array.isArray(camps) ? camps : [];
-    if (safeCamps.some(c => c?.name?.toLowerCase() === newCampName.trim().toLowerCase())) {
+    if (safeCamps.some(c => c?.name && String(c.name).toLowerCase() === newCampName.trim().toLowerCase())) {
       alert('A camp with this name already exists.');
       return;
     }
@@ -55,8 +55,8 @@ export default function Camps({ camps, donors, onAddCamp, onEditCamp, onDeleteCa
 
     const safeCamps = Array.isArray(camps) ? camps : [];
     if (
-      editName.trim().toLowerCase() !== editingCamp.name.toLowerCase() &&
-      safeCamps.some(c => c?.name?.toLowerCase() === editName.trim().toLowerCase())
+      editName.trim().toLowerCase() !== String(editingCamp.name).toLowerCase() &&
+      safeCamps.some(c => c?.name && String(c.name).toLowerCase() === editName.trim().toLowerCase())
     ) {
       alert('A camp with this name already exists.');
       return;

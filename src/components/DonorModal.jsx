@@ -80,9 +80,9 @@ function DonorModal({ isOpen, onClose, onSave, donor, camps = [], donors = [] })
     const unique = [];
     const seen = new Set();
     for (const d of donors) {
-      if (d.name && d.name.toLowerCase().includes(search)) {
-        if (!seen.has(d.name.toLowerCase())) {
-          seen.add(d.name.toLowerCase());
+      if (d.name && String(d.name).toLowerCase().includes(search)) {
+        if (!seen.has(String(d.name).toLowerCase())) {
+          seen.add(String(d.name).toLowerCase());
           unique.push(d);
         }
       }
@@ -97,15 +97,15 @@ function DonorModal({ isOpen, onClose, onSave, donor, camps = [], donors = [] })
     const unique = [];
     const seen = new Set();
     camps.forEach(c => {
-      if (c.name && c.name.toLowerCase().includes(search)) {
-        seen.add(c.name.toLowerCase());
+      if (c.name && String(c.name).toLowerCase().includes(search)) {
+        seen.add(String(c.name).toLowerCase());
         unique.push(c.name);
       }
     });
     donors.forEach(d => {
-      if (d.camp && d.camp.toLowerCase().includes(search)) {
-        if (!seen.has(d.camp.toLowerCase())) {
-          seen.add(d.camp.toLowerCase());
+      if (d.camp && String(d.camp).toLowerCase().includes(search)) {
+        if (!seen.has(String(d.camp).toLowerCase())) {
+          seen.add(String(d.camp).toLowerCase());
           unique.push(d.camp);
         }
       }
