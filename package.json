@@ -1,23 +1,57 @@
 {
   "name": "blood-bank-react",
   "private": true,
-  "version": "0.0.0",
-  "type": "module",
+  "version": "1.0.0",
+  "main": "main.js",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "electron:dev": "concurrently \"vite\" \"electron .\"",
+    "electron:build": "vite build && electron-builder"
+  },
+  "build": {
+    "appId": "com.vardaan.bloodbank",
+    "productName": "Vardaan Blood Centre Server",
+    "directories": {
+      "output": "release/"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "public/icon.svg"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false
+    },
+    "files": [
+      "dist/**/*",
+      "server/**/*",
+      "main.js",
+      "package.json"
+    ]
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "electron-is-dev": "^3.0.1",
     "exceljs": "^4.4.0",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
     "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "react-dom": "^19.2.7",
+    "sqlite3": "^6.0.1"
   },
   "devDependencies": {
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
+    "concurrently": "^10.0.4",
+    "electron": "^43.2.0",
+    "electron-builder": "^26.15.3",
     "oxlint": "^1.71.0",
     "vite": "^8.1.1"
   }

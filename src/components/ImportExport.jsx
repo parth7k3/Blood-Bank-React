@@ -9,6 +9,7 @@ import {
   downloadCSVTemplate 
 } from '../utils/excel';
 import { filterDonationsByDateRange } from '../utils/helpers';
+import { api } from '../services/api';
 
 function ImportExport({ donors, processImportedDonorsList, getNextDonorId }) {
   const [startDate, setStartDate] = useState('');
@@ -161,6 +162,11 @@ function ImportExport({ donors, processImportedDonorsList, getNextDonorId }) {
     downloadBlob(blob, 'vardaan_donor_template.csv');
   };
 
+  const handleDownloadBackup = () => {
+    // Open the download URL in a new window/tab to trigger the file download
+    window.open(api.getBackupUrl(), '_blank');
+  };
+
   return (
     <div className="import-grid">
       
@@ -277,13 +283,17 @@ function ImportExport({ donors, processImportedDonorsList, getNextDonorId }) {
           </div>
         </div>
         
-        <div style={{ marginTop: '2rem', background: 'rgba(225, 29, 72, 0.05)', padding: '1.25rem', borderRadius: 'var(--radius-md)', border: '1px solid rgba(225, 29, 72, 0.15)' }}>
-          <h4 style={{ color: 'var(--primary)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            ⚠️ Browser Privacy Note
+        {/* Database SQLite Backup Stack */}
+        <div style={{ marginTop: '2rem', padding: '1.25rem', borderRadius: 'var(--radius-md)', border: '1px solid rgba(225, 29, 72, 0.15)' }}>
+          <h4 style={{ color: 'var(--primary)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            💾 Full Database Backup
           </h4>
-          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.4, margin: 0 }}>
-            Data is stored locally in your browser's Cache/LocalStorage. Clearing cookies or site storage will remove this database. Export a CSV or JSON file regularly to ensure you do not lose any critical donor information.
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.4, marginBottom: '1rem' }}>
+            Download the raw SQLite database file directly from the server. This contains all users, settings, camps, and donors.
           </p>
+          <button className="btn btn-secondary" onClick={handleDownloadBackup} style={{ width: '100%', justifyContent: 'center' }}>
+            ⬇️ Download SQLite Backup (.sqlite)
+          </button>
         </div>
       </div>
 

@@ -502,7 +502,7 @@ export function exportToJSON(filteredList, startDate, endDate) {
 }
 
 export function exportToCSV(filteredList, startDate, endDate) {
-  const headers = ['ID', 'Financial Year', 'Name', 'Father/Husband Name', 'Address', 'Age', 'Gender', 'Blood Group', 'Contact', 'Email', 'Last Donation Date', 'Disease Positive', 'HIV', 'HCV', 'HBsAg', 'VDRL', 'MP', 'Diseases', 'Notes'];
+  const headers = ['ID', 'Financial Year', 'Name', 'Father/Husband Name', 'Address', 'Age', 'Gender', 'Blood Group', 'Blood Camp', 'Contact', 'Email', 'Last Donation Date', 'Disease Positive', 'HIV', 'HCV', 'HBsAg', 'VDRL', 'MP', 'Diseases', 'Notes'];
   const csvRows = [headers.join(',')];
 
   filteredList.forEach(donor => {
@@ -516,6 +516,7 @@ export function exportToCSV(filteredList, startDate, endDate) {
       donor.age,
       donor.gender,
       donor.bloodGroup,
+      escapeCSVValue(donor.camp || ''),
       escapeCSVValue(donor.contact),
       escapeCSVValue(donor.email),
       donor.lastDonationDate || '',

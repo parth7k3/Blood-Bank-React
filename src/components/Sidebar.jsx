@@ -43,6 +43,11 @@ function Sidebar({
                   <span className="nav-icon">🔄</span> Import & Export
                 </a>
               </li>
+              <li className={`nav-item ${activeTab === 'camps' ? 'active' : ''}`}>
+                <a href="#camps" onClick={(e) => { e.preventDefault(); setActiveTab('camps'); }}>
+                  <span className="nav-icon">⛺</span> Blood Camps
+                </a>
+              </li>
             </ul>
           </nav>
 

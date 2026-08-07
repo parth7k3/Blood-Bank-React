@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 
-function DonorModal({ isOpen, onClose, onSave, donor }) {
+function DonorModal({ isOpen, onClose, onSave, donor, camps = [] }) {
   const [srNo, setSrNo] = useState('');
   const [name, setName] = useState('');
   const [relativeName, setRelativeName] = useState('');
@@ -9,6 +9,7 @@ function DonorModal({ isOpen, onClose, onSave, donor }) {
   const [age, setAge] = useState('35');
   const [gender, setGender] = useState('Male');
   const [bloodGroup, setBloodGroup] = useState('');
+  const [camp, setCamp] = useState('');
   const [lastDonationDate, setLastDonationDate] = useState('');
   const [contact, setContact] = useState('');
   const [email, setEmail] = useState('');
@@ -33,6 +34,7 @@ function DonorModal({ isOpen, onClose, onSave, donor }) {
       setAge(donor.age ? donor.age.toString() : '35');
       setGender(donor.gender || 'Male');
       setBloodGroup(donor.bloodGroup || '');
+      setCamp(donor.camp || '');
       setLastDonationDate(donor.lastDonationDate && donor.lastDonationDate !== 'Never' ? donor.lastDonationDate : '');
       setContact(donor.contact || '');
       setEmail(donor.email || '');
@@ -58,6 +60,7 @@ function DonorModal({ isOpen, onClose, onSave, donor }) {
       setAge('35');
       setGender('Male');
       setBloodGroup('');
+      setCamp('');
       setLastDonationDate(new Date().toISOString().substring(0, 10));
       setContact('');
       setEmail('');
@@ -100,6 +103,7 @@ function DonorModal({ isOpen, onClose, onSave, donor }) {
       age: parseInt(age, 10) || 35,
       gender,
       bloodGroup,
+      camp: camp.trim(),
       lastDonationDate: lastDonationDate || 'Never',
       diseasePositive: diseaseCheck && diseasesStr !== '',
       diseases: diseaseCheck ? diseasesStr : '',
@@ -230,6 +234,26 @@ function DonorModal({ isOpen, onClose, onSave, donor }) {
                   <option value="O+">O+</option>
                   <option value="O-">O-</option>
                 </select>
+              </div>
+
+              {/* Blood Camp */}
+              <div className="form-group" style={{ position: 'relative' }}>
+                <label htmlFor="donor-camp">Blood Camp (Optional)</label>
+                <input 
+                  type="text" 
+                  id="donor-camp" 
+                  className="form-control" 
+                  value={camp}
+                  onChange={(e) => setCamp(e.target.value)}
+                  placeholder="Type or select camp..."
+                  list="camps-autocomplete-list"
+                  autoComplete="off"
+                />
+                <datalist id="camps-autocomplete-list">
+                  {camps && camps.map(c => (
+                    <option key={c.id || c.name} value={c.name} />
+                  ))}
+                </datalist>
               </div>
 
               {/* Donation / Entry Date */}

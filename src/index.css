@@ -1644,3 +1644,99 @@ body.light-theme .drawer-header h3 {
     font-weight: 500;
   }
 }
+
+/* Blood Camps Styling */
+.camp-card {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  transition: var(--transition);
+}
+
+.camp-card:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(225, 29, 72, 0.2);
+}
+
+.camp-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+}
+
+.camp-header-left {
+  display: flex;
+  flex-direction: column;
+}
+
+.camp-title {
+  font-family: var(--font-heading);
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-main);
+  margin-bottom: 0.25rem;
+}
+
+.camp-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  display: flex;
+  gap: 1rem;
+}
+
+.camp-stats {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.camp-stat-badge {
+  background: rgba(225, 29, 72, 0.1);
+  color: var(--primary);
+  padding: 0.2rem 0.6rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.camp-donors-container {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px dashed var(--border-color);
+  display: none;
+  overflow-x: auto;
+}
+
+.camp-card.expanded .camp-donors-container {
+  display: block;
+}
+
+.camp-expand-icon {
+  font-size: 1.2rem;
+  transition: var(--transition);
+}
+
+.camp-card.expanded .camp-expand-icon {
+  transform: rotate(180deg);
+}
+
+.camp-donor-row {
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.camp-donor-row:hover {
+  background: rgba(225, 29, 72, 0.05);
+}
+
+body.light-theme .camp-card {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+body.light-theme .camp-card:hover {
+  background: #ffffff;
+  border-color: #cbd5e1;
+}

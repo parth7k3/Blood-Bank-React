@@ -3,34 +3,53 @@ import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import DonorRegistry from './components/DonorRegistry';
 import ImportExport from './components/ImportExport';
+import Camps from './components/Camps';
+import { api } from './services/api';
 import { useDonors } from './hooks/useDonors';
 import { getFinancialYear } from './utils/helpers';
 
 function App() {
-  const { 
-    donors, 
-    loading, 
-    addDonor, 
-    updateDonor, 
-    deleteDonor, 
-    processImportedDonorsList, 
-    resetDatabase 
-  } = useDonors();
-
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [financialYear, setFinancialYear] = useState('');
-  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark');
-  
-  // Custom user admin session state (starts as null to prompt login)
   const [user, setUser] = useState(() => {
     const saved = localStorage.getItem('bloodbank_admin_user');
     return saved ? JSON.parse(saved) : null;
   });
-  
+
+  const { 
+    donors,
+    camps,
+    loading, 
+    addDonor, 
+    updateDonor, 
+    deleteDonor,
+    addCamp,
+    editCamp,
+    deleteCamp,
+    processImportedDonorsList, 
+    resetDatabase 
+  } = useDonors(user);
+
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [financialYear, setFinancialYear] = useState('');
+  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark');
+
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [loginUsername, setLoginUsername] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [systemInfo, setSystemInfo] = useState(null);
+
+  // Fetch system info for network banner
+  useEffect(() => {
+    async function fetchSysInfo() {
+      try {
+        const info = await api.getSystemInfo();
+        setSystemInfo(info);
+      } catch (err) {
+        console.error("Failed to load system info", err);
+      }
+    }
+    fetchSysInfo();
+  }, []);
 
   // Handle body theme changes
   useEffect(() => {
@@ -77,19 +96,20 @@ function App() {
   };
 
   // Login handler
-  const handleLoginSubmit = (e) => {
+  const handleLoginSubmit = async (e) => {
     e.preventDefault();
     setLoginError('');
-
-    if (loginUsername.trim().toLowerCase() === 'anil' && loginPassword === 'Anil_@123') {
-      const activeUser = { name: 'Anil Kumar', role: 'Administrator' };
+    try {
+      const data = await api.login(loginUsername, loginPassword);
+      const activeUser = { name: data.username, role: data.role, token: data.token };
       setUser(activeUser);
       localStorage.setItem('bloodbank_admin_user', JSON.stringify(activeUser));
+      localStorage.setItem('bloodbank_token', data.token);
       setIsLoginOpen(false);
       setLoginUsername('');
       setLoginPassword('');
-    } else {
-      setLoginError('Invalid username or administrator password.');
+    } catch (err) {
+      setLoginError('Invalid username or password.');
     }
   };
 
@@ -97,6 +117,7 @@ function App() {
   const handleLogout = () => {
     setUser(null);
     localStorage.removeItem('bloodbank_admin_user');
+    localStorage.removeItem('bloodbank_token');
   };
 
   // Wrappers to automatically select/sync the active financial year on new data entry or import
@@ -175,7 +196,28 @@ function App() {
   }
 
   return (
-    <div className="app-container">
+    <>
+      {systemInfo && window.location.protocol === 'file:' && (
+        <div style={{
+          background: 'var(--primary)',
+          color: 'white',
+          textAlign: 'center',
+          padding: '8px',
+          fontSize: '0.85rem',
+          fontWeight: 600,
+          zIndex: 1000
+        }}>
+          🌐 To connect from mobile devices on Wi-Fi, open your browser to: 
+          <span style={{ marginLeft: '8px', marginRight: '12px', background: 'rgba(0,0,0,0.3)', padding: '3px 8px', borderRadius: '4px', userSelect: 'all' }}>
+            http://{systemInfo.ip}:{systemInfo.port}
+          </span>
+          or
+          <span style={{ marginLeft: '8px', background: 'rgba(0,0,0,0.3)', padding: '3px 8px', borderRadius: '4px', userSelect: 'all' }}>
+            http://{systemInfo.hostname}.local:{systemInfo.port}
+          </span>
+        </div>
+      )}
+      <div className="app-container">
       {/* Sidebar navigation */}
       <Sidebar 
         activeTab={activeTab}
@@ -203,6 +245,7 @@ function App() {
         {activeTab === 'registry' && (
           <DonorRegistry 
             donors={donors}
+            camps={camps}
             financialYear={financialYear}
             addDonor={handleAddDonor}
             updateDonor={handleUpdateDonor}
@@ -217,6 +260,17 @@ function App() {
             donors={donors}
             processImportedDonorsList={handleProcessImportedDonorsList}
             getNextDonorId={getNextDonorId}
+          />
+        )}
+
+        {activeTab === 'camps' && (
+          <Camps 
+            camps={camps}
+            donors={donors}
+            onAddCamp={addCamp}
+            onEditCamp={editCamp}
+            onDeleteCamp={deleteCamp}
+            onSelectDonor={() => setActiveTab('registry')}
           />
         )}
       </main>
@@ -337,6 +391,7 @@ function App() {
         </div>
       )}
     </div>
+    </>
   );
 }
 

@@ -3,14 +3,15 @@ import { checkEligibility, getDiseaseScreeningResults } from '../utils/helpers';
 import DonorModal from './DonorModal';
 import DonorDrawer from './DonorDrawer';
 
-function DonorRegistry({ 
-  donors, 
-  financialYear, 
-  addDonor, 
-  updateDonor, 
+function DonorRegistry({
+  donors,
+  financialYear,
+  addDonor,
+  updateDonor,
   deleteDonor,
   user,
-  onLoginClick
+  onLoginClick,
+  camps = []
 }) {
   // Local filter states
   const [search, setSearch] = useState('');
@@ -18,7 +19,7 @@ function DonorRegistry({
   const [filterBlood, setFilterBlood] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
 
-  // Pagination states
+
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 50;
 
@@ -199,26 +200,26 @@ function DonorRegistry({
       <div className="controls-row">
         <div className="search-wrapper">
           <span className="search-icon">🔍</span>
-          <input 
-            type="text" 
-            className="search-input" 
+          <input
+            type="text"
+            className="search-input"
             placeholder="Search by name, contact info, ID..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        
+
         <div className="filter-group">
-          <input 
-            type="date" 
-            className="select-input" 
-            style={{ maxWidth: '150px' }} 
+          <input
+            type="date"
+            className="select-input"
+            style={{ maxWidth: '150px' }}
             title="Filter by Donation Date"
             value={filterDate}
             onChange={(e) => setFilterDate(e.target.value)}
           />
-          
-          <select 
+
+          <select
             className="select-input"
             value={filterBlood}
             onChange={(e) => setFilterBlood(e.target.value)}
@@ -234,7 +235,7 @@ function DonorRegistry({
             <option value="O-">O-</option>
           </select>
 
-          <select 
+          <select
             className="select-input"
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
@@ -254,6 +255,7 @@ function DonorRegistry({
             <tr>
               <th>ID</th>
               <th>Donor Demographics</th>
+              <th>Blood Camp</th>
               <th>Blood Group</th>
               <th>Contact Information</th>
               <th>Donation Date</th>
@@ -268,7 +270,7 @@ function DonorRegistry({
           <tbody>
             {paginatedDonors.length === 0 ? (
               <tr>
-                <td colSpan="11" style={{ textAlign: 'center', color: 'var(--text-dark)', padding: '3rem' }}>
+                <td colSpan="12" style={{ textAlign: 'center', color: 'var(--text-dark)', padding: '3rem' }}>
                   No donors matching filters found in database.
                 </td>
               </tr>
@@ -276,11 +278,11 @@ function DonorRegistry({
               paginatedDonors.map(donor => {
                 const diseases = getDiseaseScreeningResults(donor.diseases);
                 const isDeferred = donor.diseasePositive;
-                
+
                 return (
-                  <tr 
-                    key={donor.id} 
-                    className={isDeferred ? 'infected-row' : ''} 
+                  <tr
+                    key={donor.id}
+                    className={isDeferred ? 'infected-row' : ''}
                     style={{ cursor: 'pointer' }}
                     onClick={() => handleRowClick(donor)}
                   >
@@ -296,6 +298,7 @@ function DonorRegistry({
                         </div>
                       )}
                     </td>
+                    <td>{donor.camp ? <span className="badge" style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--text-main)' }}>{donor.camp}</span> : '-'}</td>
                     <td><span className="badge badge-blood">{donor.bloodGroup}</span></td>
                     <td>
                       <div>📞 {donor.contact || 'N/A'}</div>
@@ -346,8 +349,8 @@ function DonorRegistry({
       </div>
 
       {/* Floating horizontal scrollbar matching styles */}
-      <div 
-        id="floating-table-scrollbar" 
+      <div
+        id="floating-table-scrollbar"
         ref={floatScrollRef}
         style={{
           position: 'fixed',
@@ -371,16 +374,16 @@ function DonorRegistry({
           Showing {filteredDonors.length === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1} to {Math.min(currentPage * rowsPerPage, filteredDonors.length)} of {filteredDonors.length} entries
         </div>
         <div className="pagination-buttons">
-          <button 
-            className="btn btn-secondary btn-sm" 
-            onClick={() => setCurrentPage(1)} 
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={() => setCurrentPage(1)}
             disabled={currentPage === 1}
           >
             « First
           </button>
-          <button 
-            className="btn btn-secondary btn-sm" 
-            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} 
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
             disabled={currentPage === 1}
           >
             ‹ Prev
@@ -388,16 +391,16 @@ function DonorRegistry({
           <span className="page-number-indicator">
             Page {currentPage} of {totalPages}
           </span>
-          <button 
-            className="btn btn-secondary btn-sm" 
-            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))} 
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
             disabled={currentPage === totalPages}
           >
             Next ›
           </button>
-          <button 
-            className="btn btn-secondary btn-sm" 
-            onClick={() => setCurrentPage(totalPages)} 
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={() => setCurrentPage(totalPages)}
             disabled={currentPage === totalPages}
           >
             Last »
@@ -406,15 +409,16 @@ function DonorRegistry({
       </div>
 
       {/* Add / Edit Donor Modal */}
-      <DonorModal 
+      <DonorModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSave={handleSaveDonor}
         donor={selectedDonor}
+        camps={camps}
       />
 
       {/* View Donor Profile Drawer */}
-      <DonorDrawer 
+      <DonorDrawer
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
         donor={drawerDonor}

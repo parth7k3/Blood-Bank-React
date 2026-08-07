@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { checkEligibility, getDiseaseScreeningResults, isSamePerson } from '../utils/helpers';
 import { printDonorCertificate as printEngine } from '../utils/print';
+import { api } from '../services/api';
 
 function DonorDrawer({ isOpen, onClose, donor, donors, onEditClick }) {
   if (!donor) return null;
@@ -57,7 +58,8 @@ function DonorDrawer({ isOpen, onClose, donor, donors, onEditClick }) {
         financialYear: d.financialYear,
         diseasePositive: d.diseasePositive,
         diseases: d.diseases,
-        notes: d.notes
+        notes: d.notes,
+        camp: d.camp
       }));
 
     // Sort descending by date
@@ -72,6 +74,22 @@ function DonorDrawer({ isOpen, onClose, donor, donors, onEditClick }) {
 
   const handlePrint = () => {
     printEngine(donor);
+  };
+
+  const handleSendSMS = async () => {
+    if (!donor.contact) {
+      alert("No phone number available for this donor.");
+      return;
+    }
+    const msg = prompt(`Enter SMS message for ${donor.name}:`, "Emergency Blood Required at Vardaan Blood Centre. Please contact us.");
+    if (msg) {
+      try {
+        await api.sendSMS(donor.contact, msg);
+        alert("SMS Sent Successfully!");
+      } catch (err) {
+        alert("Failed to send SMS.");
+      }
+    }
   };
 
   return createPortal(
@@ -123,6 +141,7 @@ function DonorDrawer({ isOpen, onClose, donor, donors, onEditClick }) {
               <div className="detail-item"><strong>Blood Group:</strong> <span className="badge badge-blood">{donor.bloodGroup}</span></div>
               <div className="detail-item"><strong>Phone:</strong> {donor.contact || 'N/A'}</div>
               <div className="detail-item"><strong>Email:</strong> {donor.email || 'N/A'}</div>
+              <div className="detail-item form-full"><strong>Blood Camp:</strong> <span style={{ color: 'var(--primary)', fontWeight: 600 }}>{donor.camp || 'N/A'}</span></div>
               <div className="detail-item form-full"><strong>Address:</strong> <div style={{ marginTop: '0.25rem', fontSize: '0.9rem' }}>{donor.address || 'N/A'}</div></div>
               <div className="detail-item form-full"><strong>Administrative Details:</strong> <div className="notes-box">{donor.notes || 'N/A'}</div></div>
             </div>
@@ -190,6 +209,7 @@ function DonorDrawer({ isOpen, onClose, donor, donors, onEditClick }) {
                   <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
                     <th style={{ padding: '6px' }}>Date</th>
                     <th style={{ padding: '6px' }}>FY</th>
+                    <th style={{ padding: '6px' }}>Camp</th>
                     <th style={{ padding: '6px' }}>Status</th>
                     <th style={{ padding: '6px' }}>Detail/Note</th>
                   </tr>
@@ -199,6 +219,7 @@ function DonorDrawer({ isOpen, onClose, donor, donors, onEditClick }) {
                     <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
                       <td style={{ padding: '6px' }}>{h.date}</td>
                       <td style={{ padding: '6px' }}>{h.financialYear}</td>
+                      <td style={{ padding: '6px' }}>{h.camp || '-'}</td>
                       <td style={{ padding: '6px' }}>
                         <span className={`badge ${h.diseasePositive ? 'badge-deferred' : 'badge-safe'}`} style={{ padding: '2px 6px', fontSize: '0.72rem' }}>
                           {h.diseasePositive ? 'Diseased' : 'Cleared'}
@@ -225,11 +246,14 @@ function DonorDrawer({ isOpen, onClose, donor, donors, onEditClick }) {
 
         {/* Action button options */}
         <div className="drawer-footer" style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '1rem', display: 'flex', gap: '8px', position: 'sticky', bottom: 0, background: '#16181f' }}>
-          <button className="btn btn-secondary" id="btn-print-profile" style={{ flex: 1 }} onClick={handlePrint}>
-            🖨️ Print Certificate
+          <button className="btn btn-secondary" id="btn-print-profile" style={{ flex: 1, padding: '8px' }} onClick={handlePrint}>
+            🖨️ Print
           </button>
-          <button className="btn btn-primary" style={{ flex: 1 }} onClick={onEditClick}>
-            ✍️ Edit Profile
+          <button className="btn btn-secondary" style={{ flex: 1, padding: '8px', background: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa' }} onClick={handleSendSMS}>
+            📱 Send SMS
+          </button>
+          <button className="btn btn-primary" style={{ flex: 1, padding: '8px' }} onClick={onEditClick}>
+            ✍️ Edit
           </button>
         </div>
       </div>
