@@ -22,6 +22,9 @@ function DonorModal({ isOpen, onClose, onSave, donor, camps = [], donors = [] })
     MP: false
   });
   const [notes, setNotes] = useState('');
+  
+  const [showNameSuggestions, setShowNameSuggestions] = useState(false);
+  const [showCampSuggestions, setShowCampSuggestions] = useState(false);
 
   // Hydrate fields when editing a donor profile
   useEffect(() => {
@@ -71,19 +74,56 @@ function DonorModal({ isOpen, onClose, onSave, donor, camps = [], donors = [] })
     }
   }, [donor, isOpen]);
 
-  // Compute unique autocomplete options dynamically
-  const uniqueNames = useMemo(() => {
-    const names = new Set(donors.map(d => d.name).filter(Boolean));
-    return Array.from(names).sort();
-  }, [donors]);
+  const filteredDonors = useMemo(() => {
+    if (!name.trim()) return [];
+    const search = name.toLowerCase();
+    const unique = [];
+    const seen = new Set();
+    for (const d of donors) {
+      if (d.name && d.name.toLowerCase().includes(search)) {
+        if (!seen.has(d.name.toLowerCase())) {
+          seen.add(d.name.toLowerCase());
+          unique.push(d);
+        }
+      }
+      if (unique.length > 8) break;
+    }
+    return unique;
+  }, [donors, name]);
 
-  const uniqueCamps = useMemo(() => {
-    const campNames = new Set(camps.map(c => c.name).filter(Boolean));
-    donors.forEach(d => {
-      if (d.camp) campNames.add(d.camp);
+  const filteredCamps = useMemo(() => {
+    if (!camp.trim()) return [];
+    const search = camp.toLowerCase();
+    const unique = [];
+    const seen = new Set();
+    camps.forEach(c => {
+      if (c.name && c.name.toLowerCase().includes(search)) {
+        seen.add(c.name.toLowerCase());
+        unique.push(c.name);
+      }
     });
-    return Array.from(campNames).sort();
-  }, [camps, donors]);
+    donors.forEach(d => {
+      if (d.camp && d.camp.toLowerCase().includes(search)) {
+        if (!seen.has(d.camp.toLowerCase())) {
+          seen.add(d.camp.toLowerCase());
+          unique.push(d.camp);
+        }
+      }
+    });
+    return unique.slice(0, 8);
+  }, [camps, donors, camp]);
+
+  const handleSelectDonor = (selected) => {
+    setName(selected.name || '');
+    setRelativeName(selected.relativeName || '');
+    setAddress(selected.address || '');
+    if (selected.age) setAge(selected.age.toString());
+    if (selected.gender) setGender(selected.gender);
+    if (selected.bloodGroup) setBloodGroup(selected.bloodGroup);
+    if (selected.contact) setContact(selected.contact);
+    if (selected.email) setEmail(selected.email);
+    setShowNameSuggestions(false);
+  };
 
   const handleDiseaseCheckbox = (key) => {
     setDiseases(prev => ({
@@ -160,22 +200,40 @@ function DonorModal({ isOpen, onClose, onSave, donor, camps = [], donors = [] })
               </div>
 
               {/* Donor Name */}
-              <div className="form-group">
+              <div className="form-group" style={{ position: 'relative' }}>
                 <label htmlFor="donor-name">Donor Full Name *</label>
                 <input 
                   type="text" 
                   id="donor-name" 
                   className="form-control" 
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    setShowNameSuggestions(true);
+                  }}
+                  onFocus={() => setShowNameSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowNameSuggestions(false), 200)}
                   placeholder="e.g. Johnathan Doe" 
                   required 
-                  list="donor-names-autocomplete"
                   autoComplete="off"
                 />
-                <datalist id="donor-names-autocomplete">
-                  {uniqueNames.map(n => <option key={n} value={n} />)}
-                </datalist>
+                
+                {showNameSuggestions && filteredDonors.length > 0 && (
+                  <div className="custom-autocomplete-dropdown">
+                    {filteredDonors.map((d, idx) => (
+                      <div 
+                        key={idx} 
+                        className="autocomplete-item"
+                        onClick={() => handleSelectDonor(d)}
+                      >
+                        <div className="autocomplete-item-title">{d.name}</div>
+                        <div className="autocomplete-item-desc">
+                          F/H Name: {d.relativeName || 'N/A'} | Contact: {d.contact || 'N/A'} | BG: {d.bloodGroup || 'N/A'}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Father/Husband Name */}
@@ -265,14 +323,32 @@ function DonorModal({ isOpen, onClose, onSave, donor, camps = [], donors = [] })
                   id="donor-camp" 
                   className="form-control" 
                   value={camp}
-                  onChange={(e) => setCamp(e.target.value)}
+                  onChange={(e) => {
+                    setCamp(e.target.value);
+                    setShowCampSuggestions(true);
+                  }}
+                  onFocus={() => setShowCampSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowCampSuggestions(false), 200)}
                   placeholder="e.g. Blood Donation Drive 2024"
-                  list="donor-camps-autocomplete"
                   autoComplete="off"
                 />
-                <datalist id="donor-camps-autocomplete">
-                  {uniqueCamps.map(c => <option key={c} value={c} />)}
-                </datalist>
+                
+                {showCampSuggestions && filteredCamps.length > 0 && (
+                  <div className="custom-autocomplete-dropdown">
+                    {filteredCamps.map((c, idx) => (
+                      <div 
+                        key={idx} 
+                        className="autocomplete-item"
+                        onClick={() => {
+                          setCamp(c);
+                          setShowCampSuggestions(false);
+                        }}
+                      >
+                        <div className="autocomplete-item-title">{c}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Donation / Entry Date */}

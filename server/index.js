@@ -217,6 +217,21 @@ app.get('/api/system/backup', authenticateToken, (req, res) => {
 });
 
 // Fallback to index.html for React Router / SPA routing
+app.delete('/api/reset', authenticateToken, requireAdmin, (req, res) => {
+  db.serialize(() => {
+    db.run(`DELETE FROM donors`, (err) => {
+      if (err) console.error("Error clearing donors:", err);
+    });
+    db.run(`DELETE FROM camps`, (err) => {
+      if (err) console.error("Error clearing camps:", err);
+    });
+    db.run(`DELETE FROM sqlite_sequence WHERE name='donors' OR name='camps'`, (err) => {
+      if (err) console.error("Error resetting sequence:", err);
+    });
+    res.json({ success: true, message: "Database reset successfully" });
+  });
+});
+
 app.use((req, res, next) => {
   if (req.method === 'GET' && !req.path.startsWith('/api')) {
     res.sendFile(path.join(__dirname, '../dist/index.html'));

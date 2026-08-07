@@ -123,5 +123,14 @@ export const api = {
 
   getBackupUrl: () => {
     return `${API_BASE_URL}/system/backup`;
+  },
+
+  resetDatabase: async () => {
+    const res = await fetch(`${API_BASE_URL}/reset`, {
+      method: 'DELETE',
+      headers: getHeaders()
+    });
+    if (!res.ok) throw new Error('Failed to reset database');
+    return res.json();
   }
 };

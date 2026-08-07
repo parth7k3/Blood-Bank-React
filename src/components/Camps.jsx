@@ -17,7 +17,8 @@ export default function Camps({ camps, donors, onAddCamp, onEditCamp, onDeleteCa
       return;
     }
 
-    if (camps.some(c => c.name.toLowerCase() === newCampName.trim().toLowerCase())) {
+    const safeCamps = Array.isArray(camps) ? camps : [];
+    if (safeCamps.some(c => c?.name?.toLowerCase() === newCampName.trim().toLowerCase())) {
       alert('A camp with this name already exists.');
       return;
     }
@@ -52,9 +53,10 @@ export default function Camps({ camps, donors, onAddCamp, onEditCamp, onDeleteCa
       return;
     }
 
+    const safeCamps = Array.isArray(camps) ? camps : [];
     if (
       editName.trim().toLowerCase() !== editingCamp.name.toLowerCase() &&
-      camps.some(c => c.name.toLowerCase() === editName.trim().toLowerCase())
+      safeCamps.some(c => c?.name?.toLowerCase() === editName.trim().toLowerCase())
     ) {
       alert('A camp with this name already exists.');
       return;
@@ -73,12 +75,17 @@ export default function Camps({ camps, donors, onAddCamp, onEditCamp, onDeleteCa
 
   // Group donors by camp
   const campDonorsMap = {};
-  camps.forEach(c => {
-    campDonorsMap[c.name] = [];
+  const safeCamps = Array.isArray(camps) ? camps : [];
+  const safeDonors = Array.isArray(donors) ? donors : [];
+
+  safeCamps.forEach(c => {
+    if (c?.name) {
+      campDonorsMap[c.name] = [];
+    }
   });
 
-  donors.forEach(donor => {
-    if (donor.camp && campDonorsMap[donor.camp]) {
+  safeDonors.forEach(donor => {
+    if (donor?.camp && campDonorsMap[donor.camp]) {
       campDonorsMap[donor.camp].push(donor);
     }
   });
@@ -122,13 +129,13 @@ export default function Camps({ camps, donors, onAddCamp, onEditCamp, onDeleteCa
         </form>
 
         <div id="camps-list" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          {camps.length === 0 ? (
+          {safeCamps.length === 0 ? (
             <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>
               No blood camps found. Create one above!
             </div>
           ) : (
-            camps.map(camp => {
-              const campDonors = campDonorsMap[camp.name] || [];
+            safeCamps.map(camp => {
+              const campDonors = camp?.name ? (campDonorsMap[camp.name] || []) : [];
               const isExpanded = expandedCampIds.has(camp.id);
 
               return (

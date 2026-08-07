@@ -152,8 +152,15 @@ export function useDonors(user) {
 
   // Reset Database
   const resetDatabase = useCallback(async () => {
-    console.warn("Reset Database must be implemented on the backend.");
-  }, []);
+    try {
+      await api.resetDatabase();
+      await fetchDonors();
+      await fetchCamps();
+    } catch (err) {
+      console.error("Failed to reset database", err);
+      throw err;
+    }
+  }, [fetchDonors, fetchCamps]);
 
   return {
     donors,
