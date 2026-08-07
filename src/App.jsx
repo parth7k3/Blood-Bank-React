@@ -36,6 +36,7 @@ function App() {
   const [loginUsername, setLoginUsername] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [registryFilters, setRegistryFilters] = useState(null);
   const [systemInfo, setSystemInfo] = useState(null);
 
   // Fetch system info for network banner
@@ -155,6 +156,12 @@ function App() {
     return result;
   }, [processImportedDonorsList]);
 
+  // Handle Dashboard stat card redirection
+  const handleNavigateToRegistry = useCallback((filters) => {
+    setRegistryFilters(filters);
+    setActiveTab('registry');
+  }, []);
+
   // Helper for sequential ID calculation
   const getNextDonorId = useCallback(() => {
     return donors.reduce((max, d) => {
@@ -242,6 +249,7 @@ function App() {
             financialYear={financialYear}
             theme={theme}
             onToggleTheme={handleToggleTheme}
+            onNavigateToRegistry={handleNavigateToRegistry}
           />
         )}
 
@@ -255,6 +263,8 @@ function App() {
             deleteDonor={deleteDonor}
             user={user}
             onLoginClick={() => setIsLoginOpen(true)}
+            registryFilters={registryFilters}
+            setRegistryFilters={setRegistryFilters}
           />
         )}
 

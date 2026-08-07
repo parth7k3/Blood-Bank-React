@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 
-function DonorModal({ isOpen, onClose, onSave, donor, camps = [] }) {
+function DonorModal({ isOpen, onClose, onSave, donor, camps = [], donors = [] }) {
   const [srNo, setSrNo] = useState('');
   const [name, setName] = useState('');
   const [relativeName, setRelativeName] = useState('');
@@ -71,6 +71,20 @@ function DonorModal({ isOpen, onClose, onSave, donor, camps = [] }) {
     }
   }, [donor, isOpen]);
 
+  // Compute unique autocomplete options dynamically
+  const uniqueNames = useMemo(() => {
+    const names = new Set(donors.map(d => d.name).filter(Boolean));
+    return Array.from(names).sort();
+  }, [donors]);
+
+  const uniqueCamps = useMemo(() => {
+    const campNames = new Set(camps.map(c => c.name).filter(Boolean));
+    donors.forEach(d => {
+      if (d.camp) campNames.add(d.camp);
+    });
+    return Array.from(campNames).sort();
+  }, [camps, donors]);
+
   const handleDiseaseCheckbox = (key) => {
     setDiseases(prev => ({
       ...prev,
@@ -108,6 +122,8 @@ function DonorModal({ isOpen, onClose, onSave, donor, camps = [] }) {
       lastDonationDate: lastDonationDate || 'Never',
       diseasePositive: diseaseCheck && diseasesStr !== '',
       diseases: diseaseCheck ? diseasesStr : '',
+      contact,
+      email,
       notes
     };
 
@@ -154,8 +170,12 @@ function DonorModal({ isOpen, onClose, onSave, donor, camps = [] }) {
                   onChange={(e) => setName(e.target.value)}
                   placeholder="e.g. Johnathan Doe" 
                   required 
+                  list="donor-names-autocomplete"
                   autoComplete="off"
                 />
+                <datalist id="donor-names-autocomplete">
+                  {uniqueNames.map(n => <option key={n} value={n} />)}
+                </datalist>
               </div>
 
               {/* Father/Husband Name */}
@@ -246,14 +266,12 @@ function DonorModal({ isOpen, onClose, onSave, donor, camps = [] }) {
                   className="form-control" 
                   value={camp}
                   onChange={(e) => setCamp(e.target.value)}
-                  placeholder="Type or select camp..."
-                  list="camps-autocomplete-list"
+                  placeholder="e.g. Blood Donation Drive 2024"
+                  list="donor-camps-autocomplete"
                   autoComplete="off"
                 />
-                <datalist id="camps-autocomplete-list">
-                  {camps && camps.map(c => (
-                    <option key={c.id || c.name} value={c.name} />
-                  ))}
+                <datalist id="donor-camps-autocomplete">
+                  {uniqueCamps.map(c => <option key={c} value={c} />)}
                 </datalist>
               </div>
 

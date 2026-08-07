@@ -11,6 +11,8 @@ function DonorRegistry({
   deleteDonor,
   user,
   onLoginClick,
+  registryFilters,
+  setRegistryFilters,
   camps = []
 }) {
   // Local filter states
@@ -33,6 +35,16 @@ function DonorRegistry({
   const tableWrapperRef = useRef(null);
   const floatScrollRef = useRef(null);
   const floatContentRef = useRef(null);
+
+  // Apply incoming filters from Dashboard
+  useEffect(() => {
+    if (registryFilters) {
+      if (registryFilters.status !== undefined) setFilterStatus(registryFilters.status);
+      if (registryFilters.blood !== undefined) setFilterBlood(registryFilters.blood);
+      if (registryFilters.search !== undefined) setSearch(registryFilters.search);
+      setRegistryFilters(null); // Clear after applying so user can manually change them
+    }
+  }, [registryFilters, setRegistryFilters]);
 
   // Reset pagination if filters change
   useEffect(() => {
@@ -409,12 +421,13 @@ function DonorRegistry({
       </div>
 
       {/* Add / Edit Donor Modal */}
-      <DonorModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+      <DonorModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
         onSave={handleSaveDonor}
         donor={selectedDonor}
         camps={camps}
+        donors={donors}
       />
 
       {/* View Donor Profile Drawer */}

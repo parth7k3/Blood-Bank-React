@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { checkEligibility } from '../utils/helpers';
 
-function Dashboard({ donors, financialYear, theme, onToggleTheme }) {
+function Dashboard({ donors, financialYear, theme, onToggleTheme, onNavigateToRegistry }) {
   // 1. Filter donors by the active financial year for stats & metrics
   const fyDonors = useMemo(() => {
     if (!financialYear) return donors;
@@ -71,7 +71,7 @@ function Dashboard({ donors, financialYear, theme, onToggleTheme }) {
       {/* Stats Quick Grid widgets */}
       <div className="dashboard-grid">
         
-        <div className="stat-card">
+        <div className="stat-card" onClick={() => onNavigateToRegistry && onNavigateToRegistry({ status: '' })} style={{ cursor: 'pointer' }}>
           <div className="stat-details">
             <h3>Total Donors</h3>
             <div className="stat-number">{metrics.total}</div>
@@ -80,7 +80,7 @@ function Dashboard({ donors, financialYear, theme, onToggleTheme }) {
           <div className="stat-icon">👥</div>
         </div>
 
-        <div className="stat-card success-card">
+        <div className="stat-card success-card" onClick={() => onNavigateToRegistry && onNavigateToRegistry({ status: 'eligible' })} style={{ cursor: 'pointer' }}>
           <div className="stat-details">
             <h3>Eligible Donors</h3>
             <div className="stat-number">{metrics.eligible}</div>
@@ -89,7 +89,7 @@ function Dashboard({ donors, financialYear, theme, onToggleTheme }) {
           <div className="stat-icon">✅</div>
         </div>
 
-        <div className="stat-card warning-card">
+        <div className="stat-card warning-card" onClick={() => onNavigateToRegistry && onNavigateToRegistry({ status: 'deferred' })} style={{ cursor: 'pointer' }}>
           <div className="stat-details">
             <h3>Deferred Donors</h3>
             <div className="stat-number">{metrics.deferred}</div>
@@ -98,7 +98,7 @@ function Dashboard({ donors, financialYear, theme, onToggleTheme }) {
           <div className="stat-icon">⚠️</div>
         </div>
 
-        <div className="stat-card pending-card" style={{ background: 'rgba(59, 130, 246, 0.05)', border: '1px solid rgba(59, 130, 246, 0.1)' }}>
+        <div className="stat-card pending-card" onClick={() => onNavigateToRegistry && onNavigateToRegistry({ status: 'pending' })} style={{ background: 'rgba(59, 130, 246, 0.05)', border: '1px solid rgba(59, 130, 246, 0.1)', cursor: 'pointer' }}>
           <div className="stat-details">
             <h3>Recent Donors</h3>
             <div className="stat-number" style={{ color: '#3b82f6' }}>{metrics.pending}</div>
@@ -122,7 +122,8 @@ function Dashboard({ donors, financialYear, theme, onToggleTheme }) {
               <div 
                 key={bg} 
                 className="inventory-box"
-                style={isEmpty ? { border: '1px dashed rgba(239, 68, 68, 0.4)' } : undefined}
+                style={Object.assign({ cursor: 'pointer' }, isEmpty ? { border: '1px dashed rgba(239, 68, 68, 0.4)' } : {})}
+                onClick={() => onNavigateToRegistry && onNavigateToRegistry({ blood: bg })}
               >
                 <div className="inventory-group">{bg}</div>
                 <div className="inventory-count">{count}</div>
