@@ -142,13 +142,15 @@ function App() {
 
   const handleProcessImportedDonorsList = useCallback(async (parsedList) => {
     const result = await processImportedDonorsList(parsedList);
-    const fySet = new Set();
-    parsedList.forEach(d => {
-      if (d.financialYear) fySet.add(d.financialYear);
-    });
-    const sortedFYs = Array.from(fySet).sort((a, b) => b.localeCompare(a));
-    if (sortedFYs.length > 0) {
-      setFinancialYear(sortedFYs[0]);
+    if (result.addedCount > 0 || result.mergedCount > 0) {
+      const fySet = new Set();
+      parsedList.forEach(d => {
+        if (d.financialYear) fySet.add(d.financialYear);
+      });
+      const sortedFYs = Array.from(fySet).sort((a, b) => b.localeCompare(a));
+      if (sortedFYs.length > 0) {
+        setFinancialYear(sortedFYs[0]);
+      }
     }
     return result;
   }, [processImportedDonorsList]);
