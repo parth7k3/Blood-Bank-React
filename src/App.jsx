@@ -85,12 +85,8 @@ function App() {
       setIsLoginOpen(true);
       return;
     }
-    const confirmPass = prompt("Type Admin Password to confirm database reset:");
-    if (confirmPass !== "Anil_@123") {
-      alert("Incorrect password. Reset cancelled.");
-      return;
-    }
-    if (window.confirm("Are you sure you want to clear the entire database?")) {
+    
+    if (window.confirm("WARNING: Are you sure you want to completely clear the entire database? This action cannot be undone.")) {
       await resetDatabase();
       alert("Database reset successfully.");
     }
