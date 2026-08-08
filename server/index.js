@@ -24,6 +24,14 @@ const transporter = nodemailer.createTransport({
 
 const pendingOtps = {}; // In-memory OTP store
 
+const insertLog = (username, action, details) => {
+  const timestamp = new Date().toISOString();
+  db.run(`INSERT INTO logs (timestamp, username, action, details) VALUES (?, ?, ?, ?)`, 
+    [timestamp, username, action, details], (err) => {
+      if (err) console.error("Failed to insert log:", err.message);
+    });
+};
+
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
@@ -116,7 +124,15 @@ app.post('/api/auth/login', (req, res) => {
     if (!validPassword) return res.status(401).json({ error: 'Invalid username or password' });
     
     const token = jwt.sign({ id: user.id, username: user.username, role: user.role }, JWT_SECRET, { expiresIn: '24h' });
+    insertLog(user.username, 'LOGIN', 'User logged in successfully');
     res.json({ token, role: user.role, username: user.username });
+  });
+});
+
+app.get('/api/logs', authenticateToken, requireAdmin, (req, res) => {
+  db.all(`SELECT * FROM logs ORDER BY id DESC`, [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows);
   });
 });
 
@@ -146,6 +162,7 @@ app.post('/api/donors/bulk', authenticateToken, (req, res) => {
         console.error("Bulk insert failed:", err);
         return res.status(500).json({ error: 'Bulk insert failed' });
       }
+      insertLog(req.user.username, 'BULK_IMPORT', `Imported ${donors.length} donors`);
       res.json({ success: true, count: donors.length });
     });
   });
@@ -171,6 +188,7 @@ app.post('/api/donors', authenticateToken, (req, res) => {
     [id, name, relativeName, age, gender, bloodGroup, contact, email, address, lastDonationDate, diseasePositive, diseases, notes, financialYear, donationHistory ? JSON.stringify(donationHistory) : null, camp],
     function(err) {
       if (err) return res.status(500).json({ error: err.message });
+      insertLog(req.user.username, 'ADD_DONOR', `Added donor: ${name} (${id})`);
       res.json({ id: this.lastID, donorId: id, name, relativeName, age, gender, bloodGroup, contact, email, address, lastDonationDate, diseasePositive, diseases, notes, financialYear, donationHistory, camp });
     });
 });
@@ -183,6 +201,7 @@ app.put('/api/donors/:id', authenticateToken, (req, res) => {
     [name, relativeName, age, gender, bloodGroup, contact, email, address, lastDonationDate, diseasePositive, diseases, notes, financialYear, donationHistory ? JSON.stringify(donationHistory) : null, camp, donorIdParam],
     function(err) {
       if (err) return res.status(500).json({ error: err.message });
+      insertLog(req.user.username, 'UPDATE_DONOR', `Updated donor ID: ${donorIdParam}`);
       res.json({ success: true, changes: this.changes });
     });
 });
@@ -190,6 +209,7 @@ app.put('/api/donors/:id', authenticateToken, (req, res) => {
 app.delete('/api/donors/:id', authenticateToken, (req, res) => {
   db.run(`DELETE FROM donors WHERE donorId = ?`, req.params.id, function(err) {
     if (err) return res.status(500).json({ error: err.message });
+    insertLog(req.user.username, 'DELETE_DONOR', `Deleted donor ID: ${req.params.id}`);
     res.json({ success: true, changes: this.changes });
   });
 });
@@ -209,6 +229,7 @@ app.post('/api/camps', authenticateToken, requireAdmin, (req, res) => {
     [name, location, date, status || 'upcoming'],
     function(err) {
       if (err) return res.status(500).json({ error: err.message });
+      insertLog(req.user.username, 'ADD_CAMP', `Added camp: ${name}`);
       res.json({ id: this.lastID, ...req.body });
     });
 });
@@ -220,6 +241,7 @@ app.put('/api/camps/:id', authenticateToken, requireAdmin, (req, res) => {
     [name, location, date, status, req.params.id],
     function(err) {
       if (err) return res.status(500).json({ error: err.message });
+      insertLog(req.user.username, 'UPDATE_CAMP', `Updated camp ID: ${req.params.id}`);
       res.json({ message: 'Updated successfully' });
     });
 });
@@ -227,6 +249,7 @@ app.put('/api/camps/:id', authenticateToken, requireAdmin, (req, res) => {
 app.delete('/api/camps/:id', authenticateToken, requireAdmin, (req, res) => {
   db.run(`DELETE FROM camps WHERE id = ?`, [req.params.id], function(err) {
     if (err) return res.status(500).json({ error: err.message });
+    insertLog(req.user.username, 'DELETE_CAMP', `Deleted camp ID: ${req.params.id}`);
     res.json({ message: 'Deleted successfully' });
   });
 });
@@ -295,6 +318,7 @@ app.delete('/api/reset', authenticateToken, requireAdmin, (req, res) => {
     db.run(`DELETE FROM sqlite_sequence WHERE name='donors' OR name='camps'`, (err) => {
       if (err) console.error("Error resetting sequence:", err);
     });
+    insertLog(req.user.username, 'RESET_DB', 'Database was completely reset');
     res.json({ success: true, message: "Database reset successfully" });
   });
 });

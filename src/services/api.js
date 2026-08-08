@@ -143,6 +143,13 @@ export const api = {
     return res.json();
   },
 
+  // Logs
+  getLogs: async () => {
+    const res = await fetch(`${API_BASE_URL}/logs`, { headers: getHeaders() });
+    if (!res.ok) throw new Error('Failed to fetch logs');
+    return res.json();
+  },
+
   getBackupUrl: () => {
     return `${API_BASE_URL}/system/backup`;
   },

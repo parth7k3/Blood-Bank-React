@@ -48,6 +48,13 @@ function Sidebar({
                   <span className="nav-icon">⛺</span> Blood Camps
                 </a>
               </li>
+              {user && user.role === 'admin' && (
+                <li className={`nav-item ${activeTab === 'logs' ? 'active' : ''}`}>
+                  <a href="#logs" onClick={(e) => { e.preventDefault(); setActiveTab('logs'); }}>
+                    <span className="nav-icon">📝</span> System Logs
+                  </a>
+                </li>
+              )}
             </ul>
           </nav>
 

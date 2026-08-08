@@ -4,6 +4,7 @@ import Dashboard from './components/Dashboard';
 import DonorRegistry from './components/DonorRegistry';
 import ImportExport from './components/ImportExport';
 import Camps from './components/Camps';
+import AdminLogs from './components/AdminLogs';
 import { api } from './services/api';
 import { useDonors } from './hooks/useDonors';
 import { getFinancialYear } from './utils/helpers';
@@ -329,6 +330,10 @@ function App() {
             onDeleteCamp={deleteCamp}
             onSelectDonor={() => setActiveTab('registry')}
           />
+        )}
+
+        {activeTab === 'logs' && user && user.role === 'admin' && (
+          <AdminLogs />
         )}
       </main>
 

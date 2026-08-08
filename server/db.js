@@ -98,6 +98,15 @@ const db = new sqlite3.Database(dbPath, (err) => {
         status TEXT
       )`);
 
+      // Logs table for Audit Trail
+      db.run(`CREATE TABLE IF NOT EXISTS logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        timestamp TEXT,
+        username TEXT,
+        action TEXT,
+        details TEXT
+      )`);
+
       // Insert default admin user if none exists
       db.get(`SELECT * FROM users WHERE role = ?`, ['admin'], (err, row) => {
         if (!row) {
