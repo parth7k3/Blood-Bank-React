@@ -7,26 +7,19 @@ const os = require('os');
 const db = require('./db');
 const nodemailer = require('nodemailer');
 
+require('dotenv').config();
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 const JWT_SECRET = 'super-secret-blood-bank-key-change-in-prod';
 
-let transporter;
-nodemailer.createTestAccount((err, account) => {
-  if (err) {
-    console.error('Failed to create a testing account. ' + err.message);
-    return;
+// Configure Real SMTP Transporter using .env credentials
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS
   }
-  transporter = nodemailer.createTransport({
-    host: account.smtp.host,
-    port: account.smtp.port,
-    secure: account.smtp.secure,
-    auth: {
-      user: account.user,
-      pass: account.pass
-    }
-  });
-  console.log("Ethereal SMTP initialized for testing. Check server logs for email preview URLs.");
 });
 
 const pendingOtps = {}; // In-memory OTP store
@@ -85,8 +78,7 @@ app.post('/api/auth/register/request-otp', (req, res) => {
           console.error('Error sending OTP email:', error);
           return res.status(500).json({ error: 'Failed to send OTP email' });
         }
-        console.log('OTP Email sent: %s', info.messageId);
-        console.log('Preview URL: %s', nodemailer.getTestMessageUrl(info));
+        console.log('Real OTP Email successfully sent to admin!');
         res.json({ success: true, message: 'OTP sent to admin email' });
       });
     } else {
