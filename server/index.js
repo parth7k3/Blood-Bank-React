@@ -75,7 +75,7 @@ app.post('/api/auth/register/request-otp', (req, res) => {
     
     const mailOptions = {
       from: '"Vardaan Blood Centre" <no-reply@vardaan.org>',
-      to: 'neelu..jan01@gmail.com',
+      to: 'neelu.jan01@gmail.com',
       subject: 'OTP for New Staff Registration',
       text: `A new staff member is trying to register with the username "${username}".\n\nThe OTP to complete their registration is: ${otp}\n\nThis OTP expires in 10 minutes. If you did not authorize this, please ignore this email.`
     };
@@ -332,7 +332,7 @@ app.use((req, res, next) => {
 });
 
 // Start Server with EADDRINUSE handling
-const server = app.listen(PORT, () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
 });
 

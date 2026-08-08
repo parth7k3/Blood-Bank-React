@@ -268,7 +268,7 @@ function App() {
           </span>
           or
           <span style={{ marginLeft: '8px', background: 'rgba(0,0,0,0.3)', padding: '3px 8px', borderRadius: '4px', userSelect: 'all' }}>
-            http://{systemInfo.hostname}.local:{systemInfo.port}
+            http://{systemInfo.hostname}:{systemInfo.port}
           </span>
         </div>
       )}
@@ -485,7 +485,7 @@ function App() {
                   <>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                       <label style={{ fontSize: '0.78rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>6-Digit OTP Code</label>
-                      <p style={{ margin: 0, fontSize: '0.75rem', color: '#cbd5e1', marginBottom: '8px' }}>Ask the administrator (neelu..jan01@gmail.com) for the OTP sent to their email.</p>
+                      <p style={{ margin: 0, fontSize: '0.75rem', color: '#cbd5e1', marginBottom: '8px' }}>Ask the administrator (neelu.jan01@gmail.com) for the OTP sent to their email.</p>
                       <input 
                         type="text" value={otpCode} onChange={(e) => setOtpCode(e.target.value)}
                         placeholder="e.g. 123456" required maxLength={6}
