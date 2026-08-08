@@ -30,7 +30,8 @@
       "dist/**/*",
       "server/**/*",
       "main.js",
-      "package.json"
+      "package.json",
+      ".env"
     ]
   },
   "dependencies": {
