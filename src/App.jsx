@@ -33,9 +33,21 @@ function App() {
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark');
 
   const [isLoginOpen, setIsLoginOpen] = useState(false);
+  const [authTab, setAuthTab] = useState('login'); // 'login' or 'register'
+  
+  // Login states
   const [loginUsername, setLoginUsername] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
+  
+  // Registration states
+  const [registerUsername, setRegisterUsername] = useState('');
+  const [registerPassword, setRegisterPassword] = useState('');
+  const [otpStep, setOtpStep] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [registerError, setRegisterError] = useState('');
+  const [registerMessage, setRegisterMessage] = useState('');
+  
   const [registryFilters, setRegistryFilters] = useState(null);
   const [systemInfo, setSystemInfo] = useState(null);
 
@@ -107,6 +119,42 @@ function App() {
       setLoginPassword('');
     } catch (err) {
       setLoginError('Invalid username or password.');
+    }
+  };
+
+  // Register handlers
+  const handleRegisterRequest = async (e) => {
+    e.preventDefault();
+    setRegisterError('');
+    setRegisterMessage('');
+    try {
+      const res = await api.requestOtp(registerUsername, registerPassword);
+      setRegisterMessage(res.message);
+      setOtpStep(true);
+    } catch (err) {
+      setRegisterError(err.message || 'Failed to request OTP');
+    }
+  };
+
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    setRegisterError('');
+    try {
+      const data = await api.verifyOtp(registerUsername, otpCode);
+      const activeUser = { name: data.username, role: data.role, token: data.token };
+      setUser(activeUser);
+      localStorage.setItem('bloodbank_admin_user', JSON.stringify(activeUser));
+      localStorage.setItem('bloodbank_token', data.token);
+      
+      setIsLoginOpen(false);
+      setRegisterUsername('');
+      setRegisterPassword('');
+      setOtpCode('');
+      setOtpStep(false);
+      setAuthTab('login');
+      alert("Registration successful! You are now logged in.");
+    } catch (err) {
+      setRegisterError(err.message || 'Invalid OTP');
     }
   };
 
@@ -308,94 +356,145 @@ function App() {
             maxWidth: '380px',
             boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5)'
           }} onClick={(e) => e.stopPropagation()}>
-            <form onSubmit={handleLoginSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              <div style={{ textAlign: 'center', marginBottom: '0.5rem' }}>
-                <h3 style={{ margin: '0 0 6px 0', color: '#f8fafc', fontSize: '1.25rem', fontWeight: 700 }}>
-                  Staff Administration Login
-                </h3>
-                <p style={{ margin: 0, color: '#64748b', fontSize: '0.85rem' }}>
-                  Secure portal authorization
-                </p>
-              </div>
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
+              <button
+                type="button"
+                onClick={() => setAuthTab('login')}
+                style={{
+                  flex: 1, padding: '8px', borderRadius: '6px', border: 'none', cursor: 'pointer',
+                  background: authTab === 'login' ? '#991b1b' : 'rgba(255,255,255,0.1)',
+                  color: authTab === 'login' ? '#fff' : '#94a3b8',
+                  fontWeight: authTab === 'login' ? 600 : 400
+                }}
+              >Login</button>
+              <button
+                type="button"
+                onClick={() => setAuthTab('register')}
+                style={{
+                  flex: 1, padding: '8px', borderRadius: '6px', border: 'none', cursor: 'pointer',
+                  background: authTab === 'register' ? '#991b1b' : 'rgba(255,255,255,0.1)',
+                  color: authTab === 'register' ? '#fff' : '#94a3b8',
+                  fontWeight: authTab === 'register' ? 600 : 400
+                }}
+              >Register</button>
+            </div>
 
-              {loginError && (
-                <div style={{
-                  background: 'rgba(239, 68, 68, 0.1)',
-                  border: '1px solid rgba(239, 68, 68, 0.2)',
-                  color: '#fca5a5',
-                  padding: '10px',
-                  borderRadius: '6px',
-                  fontSize: '0.8rem',
-                  textAlign: 'center'
-                }}>
-                  ⚠️ {loginError}
+            {authTab === 'login' && (
+              <form onSubmit={handleLoginSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                <div style={{ textAlign: 'center', marginBottom: '0.5rem' }}>
+                  <h3 style={{ margin: '0 0 6px 0', color: '#f8fafc', fontSize: '1.25rem', fontWeight: 700 }}>
+                    Staff Administration Login
+                  </h3>
+                  <p style={{ margin: 0, color: '#64748b', fontSize: '0.85rem' }}>
+                    Secure portal authorization
+                  </p>
                 </div>
-              )}
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '0.78rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>
-                  Username
-                </label>
-                <input 
-                  type="text" 
-                  value={loginUsername}
-                  onChange={(e) => setLoginUsername(e.target.value)}
-                  placeholder="Enter 'anil'" 
-                  required
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    borderRadius: '6px',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    background: 'rgba(0,0,0,0.25)',
-                    color: '#fff',
-                    outline: 'none',
-                    fontSize: '0.95rem'
-                  }}
-                />
-              </div>
+                {loginError && (
+                  <div style={{
+                    background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)',
+                    color: '#fca5a5', padding: '10px', borderRadius: '6px', fontSize: '0.8rem', textAlign: 'center'
+                  }}>
+                    ⚠️ {loginError}
+                  </div>
+                )}
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '0.78rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>
-                  Password
-                </label>
-                <input 
-                  type="password" 
-                  value={loginPassword}
-                  onChange={(e) => setLoginPassword(e.target.value)}
-                  placeholder="Enter 'Anil_@123'" 
-                  required
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    borderRadius: '6px',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    background: 'rgba(0,0,0,0.25)',
-                    color: '#fff',
-                    outline: 'none',
-                    fontSize: '0.95rem'
-                  }}
-                />
-              </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '0.78rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>Username</label>
+                  <input 
+                    type="text" value={loginUsername} onChange={(e) => setLoginUsername(e.target.value)}
+                    placeholder="Enter 'admin'" required
+                    style={{
+                      width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)',
+                      background: 'rgba(0,0,0,0.25)', color: '#fff', outline: 'none', fontSize: '0.95rem'
+                    }}
+                  />
+                </div>
 
-              <div style={{ display: 'flex', gap: '12px', marginTop: '0.5rem' }}>
-                <button 
-                  type="button" 
-                  onClick={() => setIsLoginOpen(false)}
-                  className="btn btn-secondary" 
-                  style={{ flex: 1, padding: '10px' }}
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="submit" 
-                  className="btn btn-primary" 
-                  style={{ flex: 1, padding: '10px', background: '#991b1b' }}
-                >
-                  🔐 Authorize
-                </button>
-              </div>
-            </form>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '0.78rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>Password</label>
+                  <input 
+                    type="password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)}
+                    placeholder="Enter password" required
+                    style={{
+                      width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)',
+                      background: 'rgba(0,0,0,0.25)', color: '#fff', outline: 'none', fontSize: '0.95rem'
+                    }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', gap: '12px', marginTop: '0.5rem' }}>
+                  <button type="button" onClick={() => setIsLoginOpen(false)} className="btn btn-secondary" style={{ flex: 1, padding: '10px' }}>Cancel</button>
+                  <button type="submit" className="btn btn-primary" style={{ flex: 1, padding: '10px', background: '#991b1b' }}>🔐 Authorize</button>
+                </div>
+              </form>
+            )}
+
+            {authTab === 'register' && (
+              <form onSubmit={otpStep ? handleVerifyOtp : handleRegisterRequest} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                <div style={{ textAlign: 'center', marginBottom: '0.5rem' }}>
+                  <h3 style={{ margin: '0 0 6px 0', color: '#f8fafc', fontSize: '1.25rem', fontWeight: 700 }}>
+                    Register New Staff
+                  </h3>
+                  <p style={{ margin: 0, color: '#64748b', fontSize: '0.85rem' }}>
+                    Approval required by Administrator
+                  </p>
+                </div>
+
+                {registerError && (
+                  <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', color: '#fca5a5', padding: '10px', borderRadius: '6px', fontSize: '0.8rem', textAlign: 'center' }}>
+                    ⚠️ {registerError}
+                  </div>
+                )}
+                
+                {registerMessage && (
+                  <div style={{ background: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.2)', color: '#86efac', padding: '10px', borderRadius: '6px', fontSize: '0.8rem', textAlign: 'center' }}>
+                    ✅ {registerMessage}
+                  </div>
+                )}
+
+                {!otpStep ? (
+                  <>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '0.78rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>Desired Username</label>
+                      <input 
+                        type="text" value={registerUsername} onChange={(e) => setRegisterUsername(e.target.value)}
+                        placeholder="Choose username" required
+                        style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.25)', color: '#fff', outline: 'none', fontSize: '0.95rem' }}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '0.78rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>Password</label>
+                      <input 
+                        type="password" value={registerPassword} onChange={(e) => setRegisterPassword(e.target.value)}
+                        placeholder="Choose password" required
+                        style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.25)', color: '#fff', outline: 'none', fontSize: '0.95rem' }}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', gap: '12px', marginTop: '0.5rem' }}>
+                      <button type="button" onClick={() => setIsLoginOpen(false)} className="btn btn-secondary" style={{ flex: 1, padding: '10px' }}>Cancel</button>
+                      <button type="submit" className="btn btn-primary" style={{ flex: 1, padding: '10px', background: '#2563eb' }}>Request OTP</button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '0.78rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>6-Digit OTP Code</label>
+                      <p style={{ margin: 0, fontSize: '0.75rem', color: '#cbd5e1', marginBottom: '8px' }}>Ask the administrator (neelu..jan01@gmail.com) for the OTP sent to their email.</p>
+                      <input 
+                        type="text" value={otpCode} onChange={(e) => setOtpCode(e.target.value)}
+                        placeholder="e.g. 123456" required maxLength={6}
+                        style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.25)', color: '#fff', outline: 'none', fontSize: '0.95rem', letterSpacing: '2px' }}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', gap: '12px', marginTop: '0.5rem' }}>
+                      <button type="button" onClick={() => setOtpStep(false)} className="btn btn-secondary" style={{ flex: 1, padding: '10px' }}>Back</button>
+                      <button type="submit" className="btn btn-primary" style={{ flex: 1, padding: '10px', background: '#16a34a' }}>Verify & Register</button>
+                    </div>
+                  </>
+                )}
+              </form>
+            )}
           </div>
         </div>
       )}

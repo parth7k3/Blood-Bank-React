@@ -21,6 +21,28 @@ export const api = {
     return res.json();
   },
   
+  requestOtp: async (username, password) => {
+    const res = await fetch(`${API_BASE_URL}/auth/register/request-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to request OTP');
+    return data;
+  },
+
+  verifyOtp: async (username, otp) => {
+    const res = await fetch(`${API_BASE_URL}/auth/register/verify-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, otp })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Invalid OTP');
+    return data;
+  },
+  
   // Donors
   getDonors: async () => {
     const res = await fetch(`${API_BASE_URL}/donors`, { headers: getHeaders() });

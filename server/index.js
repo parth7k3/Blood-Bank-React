@@ -5,10 +5,31 @@ const bcrypt = require('bcryptjs');
 const path = require('path');
 const os = require('os');
 const db = require('./db');
+const nodemailer = require('nodemailer');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 const JWT_SECRET = 'super-secret-blood-bank-key-change-in-prod';
+
+let transporter;
+nodemailer.createTestAccount((err, account) => {
+  if (err) {
+    console.error('Failed to create a testing account. ' + err.message);
+    return;
+  }
+  transporter = nodemailer.createTransport({
+    host: account.smtp.host,
+    port: account.smtp.port,
+    secure: account.smtp.secure,
+    auth: {
+      user: account.user,
+      pass: account.pass
+    }
+  });
+  console.log("Ethereal SMTP initialized for testing. Check server logs for email preview URLs.");
+});
+
+const pendingOtps = {}; // In-memory OTP store
 
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
@@ -38,6 +59,60 @@ const requireAdmin = (req, res, next) => {
 };
 
 // --- Auth Routes ---
+app.post('/api/auth/register/request-otp', (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
+  
+  db.get(`SELECT * FROM users WHERE username = ?`, [username], (err, user) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (user) return res.status(400).json({ error: 'Username already taken' });
+    
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const hash = bcrypt.hashSync(password, 8);
+    
+    pendingOtps[username] = { otp, hash, expires: Date.now() + 10 * 60000 };
+    
+    const mailOptions = {
+      from: '"Vardaan Blood Centre" <no-reply@vardaan.org>',
+      to: 'neelu..jan01@gmail.com',
+      subject: 'OTP for New Staff Registration',
+      text: `A new staff member is trying to register with the username "${username}".\n\nThe OTP to complete their registration is: ${otp}\n\nThis OTP expires in 10 minutes. If you did not authorize this, please ignore this email.`
+    };
+    
+    if (transporter) {
+      transporter.sendMail(mailOptions, (error, info) => {
+        if (error) {
+          console.error('Error sending OTP email:', error);
+          return res.status(500).json({ error: 'Failed to send OTP email' });
+        }
+        console.log('OTP Email sent: %s', info.messageId);
+        console.log('Preview URL: %s', nodemailer.getTestMessageUrl(info));
+        res.json({ success: true, message: 'OTP sent to admin email' });
+      });
+    } else {
+      res.status(500).json({ error: 'Mail transporter not ready yet' });
+    }
+  });
+});
+
+app.post('/api/auth/register/verify-otp', (req, res) => {
+  const { username, otp } = req.body;
+  const record = pendingOtps[username];
+  
+  if (!record) return res.status(400).json({ error: 'No pending registration found' });
+  if (Date.now() > record.expires) {
+    delete pendingOtps[username];
+    return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
+  }
+  if (record.otp !== otp) return res.status(400).json({ error: 'Invalid OTP' });
+  
+  db.run(`INSERT INTO users (username, password, role) VALUES (?, ?, ?)`, [username, record.hash, 'staff'], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    delete pendingOtps[username];
+    const token = jwt.sign({ id: this.lastID, username, role: 'staff' }, JWT_SECRET, { expiresIn: '24h' });
+    res.json({ token, role: 'staff', username });
+  });
+});
 app.post('/api/auth/login', (req, res) => {
   const { username, password } = req.body;
   
