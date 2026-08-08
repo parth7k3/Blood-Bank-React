@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { api } from '../services/api';
 
 export function useDonors(user) {
-  const [donors, setDonors] = useState([]);
   const [camps, setCamps] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -10,7 +9,6 @@ export function useDonors(user) {
   useEffect(() => {
     async function loadData() {
       if (!user) {
-        setDonors([]);
         setCamps([]);
         setLoading(false);
         return;
@@ -18,24 +16,11 @@ export function useDonors(user) {
       
       try {
         setLoading(true);
-        const [donorsData, campsData] = await Promise.all([
-          api.getDonors(),
-          api.getCamps()
-        ]);
-        
-        // Ensure donors have history property (from server or computed)
-        const parsedDonors = donorsData.map(d => ({
-          ...d,
-          donationHistory: d.donationHistory ? JSON.parse(d.donationHistory) : []
-        }));
-        
-        setDonors(parsedDonors);
+        const campsData = await api.getCamps();
         setCamps(campsData);
       } catch (err) {
         console.error("Failed to load data from server", err);
-        // Handle unauthorized or network error
         if (err.message.includes('401') || err.message.includes('403')) {
-          setDonors([]);
           setCamps([]);
         }
       } finally {
@@ -56,12 +41,7 @@ export function useDonors(user) {
       };
       
       const newDonor = await api.createDonor(payload);
-      const formattedDonor = {
-        ...newDonor,
-        donationHistory: history
-      };
-      setDonors(prev => [formattedDonor, ...prev]);
-      return formattedDonor;
+      return { ...newDonor, donationHistory: history };
     } catch (err) {
       console.error("Failed to add donor", err);
       return null;
@@ -71,11 +51,7 @@ export function useDonors(user) {
   // CRUD: Update Donor
   const updateDonor = useCallback(async (id, donorData, isEditMode = false) => {
     try {
-      const payload = {
-        ...donorData
-      };
-      await api.updateDonor(id, payload);
-      setDonors(prev => prev.map(d => (d.id === id ? { ...d, ...donorData } : d)));
+      await api.updateDonor(id, donorData);
       return true;
     } catch (err) {
       console.error("Failed to update donor", err);
@@ -87,7 +63,6 @@ export function useDonors(user) {
   const deleteDonor = useCallback(async (id) => {
     try {
       await api.deleteDonor(id);
-      setDonors(prev => prev.filter(d => d.id !== id));
       return true;
     } catch (err) {
       console.error("Failed to delete donor", err);
@@ -135,14 +110,6 @@ export function useDonors(user) {
   const processImportedDonorsList = useCallback(async (parsedImport) => {
     try {
       const result = await api.bulkImportDonors(parsedImport);
-      // Reload donors from backend after bulk insert
-      const donorsData = await api.getDonors();
-      const parsedDonors = donorsData.map(d => ({
-        ...d,
-        donationHistory: d.donationHistory ? JSON.parse(d.donationHistory) : []
-      }));
-      setDonors(parsedDonors);
-      
       return { addedCount: result.count, mergedCount: 0 };
     } catch (err) {
       console.error("Bulk import failed:", err);
@@ -154,7 +121,6 @@ export function useDonors(user) {
   const resetDatabase = useCallback(async () => {
     try {
       await api.resetDatabase();
-      setDonors([]);
       setCamps([]);
     } catch (err) {
       console.error("Failed to reset database", err);
@@ -163,7 +129,6 @@ export function useDonors(user) {
   }, []);
 
   return {
-    donors,
     camps,
     loading,
     addDonor,

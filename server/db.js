@@ -89,6 +89,12 @@ const db = new sqlite3.Database(dbPath, (err) => {
         }
       });
 
+      // Create indexes for high-performance querying
+      db.run(`CREATE INDEX IF NOT EXISTS idx_donors_name ON donors(name)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_donors_bloodGroup ON donors(bloodGroup)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_donors_financialYear ON donors(financialYear)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_donors_donorId ON donors(donorId)`);
+
       // Camps table
       db.run(`CREATE TABLE IF NOT EXISTS camps (
         id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -1,48 +1,44 @@
-import React, { useMemo } from 'react';
-import { checkEligibility } from '../utils/helpers';
+import React, { useState, useEffect } from 'react';
+import { api } from '../services/api';
 
-function Dashboard({ donors, financialYear, theme, onToggleTheme, onNavigateToRegistry }) {
-  // 1. Filter donors by the active financial year for stats & metrics
-  const fyDonors = useMemo(() => {
-    if (!financialYear) return donors;
-    return donors.filter(d => d.financialYear === financialYear);
-  }, [donors, financialYear]);
+function Dashboard({ financialYear, theme, onToggleTheme, onNavigateToRegistry }) {
+  const [metrics, setMetrics] = useState({ total: 0, eligible: 0, deferred: 0, pending: 0 });
+  const [bloodInventory, setBloodInventory] = useState({
+    'A+': 0, 'A-': 0, 'B+': 0, 'B-': 0, 'AB+': 0, 'AB-': 0, 'O+': 0, 'O-': 0
+  });
+  const [loading, setLoading] = useState(true);
 
-  // 2. Compute metrics based on active donors
-  const metrics = useMemo(() => {
-    let total = fyDonors.length;
-    let eligible = 0;
-    let deferred = 0;
-    let pending = 0;
+  useEffect(() => {
+    async function loadStats() {
+      try {
+        setLoading(true);
+        const stats = await api.getStats(financialYear);
+        
+        setMetrics({
+          total: stats.total || 0,
+          eligible: stats.eligible || 0,
+          deferred: stats.deferred || 0,
+          pending: stats.pending || 0
+        });
 
-    fyDonors.forEach(donor => {
-      const statusObj = checkEligibility(donor, donors);
-      if (statusObj.status === 'safe') eligible++;
-      else if (statusObj.status === 'deferred') deferred++;
-      else if (statusObj.status === 'pending') pending++;
-    });
-
-    return { total, eligible, deferred, pending };
-  }, [fyDonors, donors]);
-
-  // 3. Compute blood group counts from eligible donors in the selected financial year
-  const bloodInventory = useMemo(() => {
-    const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
-    const counts = {};
-    
-    bloodGroups.forEach(bg => {
-      counts[bg] = 0;
-    });
-
-    fyDonors.forEach(donor => {
-      const statusObj = checkEligibility(donor, donors);
-      if (statusObj.status === 'safe' && bloodGroups.includes(donor.bloodGroup)) {
-        counts[donor.bloodGroup]++;
+        const newInventory = { 'A+': 0, 'A-': 0, 'B+': 0, 'B-': 0, 'AB+': 0, 'AB-': 0, 'O+': 0, 'O-': 0 };
+        if (stats.byBloodGroup) {
+          stats.byBloodGroup.forEach(item => {
+            if (newInventory[item.bloodGroup] !== undefined) {
+              newInventory[item.bloodGroup] = item.count;
+            }
+          });
+        }
+        setBloodInventory(newInventory);
+      } catch (err) {
+        console.error("Failed to load dashboard stats", err);
+      } finally {
+        setLoading(false);
       }
-    });
+    }
 
-    return counts;
-  }, [fyDonors, donors]);
+    loadStats();
+  }, [financialYear]);
 
   return (
     <div>

@@ -44,9 +44,28 @@ export const api = {
   },
   
   // Donors
-  getDonors: async () => {
-    const res = await fetch(`${API_BASE_URL}/donors`, { headers: getHeaders() });
+  getDonors: async (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    const res = await fetch(`${API_BASE_URL}/donors?${query}`, { headers: getHeaders() });
     if (!res.ok) throw new Error('Failed to fetch donors');
+    return res.json();
+  },
+
+  getStats: async (fy = '') => {
+    const res = await fetch(`${API_BASE_URL}/donors/stats?fy=${fy}`, { headers: getHeaders() });
+    if (!res.ok) throw new Error('Failed to fetch stats');
+    return res.json();
+  },
+
+  getExportUrl: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    const token = localStorage.getItem('bloodbank_token');
+    return `${API_BASE_URL}/donors/export?${query}&token=${token}`; // Assuming token auth in query params is supported, or we can fetch as blob
+  },
+
+  getFinancialYears: async () => {
+    const res = await fetch(`${API_BASE_URL}/donors/fys`, { headers: getHeaders() });
+    if (!res.ok) throw new Error('Failed to fetch financial years');
     return res.json();
   },
   

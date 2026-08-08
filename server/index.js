@@ -43,7 +43,10 @@ app.use(express.static(path.join(__dirname, '../dist')));
 // --- Authentication Middleware ---
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+  let token = authHeader && authHeader.split(' ')[1];
+  if (!token && req.query.token) {
+    token = req.query.token;
+  }
   if (token == null) return res.sendStatus(401);
 
   jwt.verify(token, JWT_SECRET, (err, user) => {
@@ -171,14 +174,174 @@ app.post('/api/donors/bulk', authenticateToken, (req, res) => {
 
 // --- Donors Routes ---
 app.get('/api/donors', authenticateToken, (req, res) => {
-  db.all(`SELECT * FROM donors`, [], (err, rows) => {
+  const { page = 1, limit = 50, search = '', bloodGroup = '', fy = '', camp = '', status = '', date = '' } = req.query;
+  const offset = (page - 1) * limit;
+
+  let query = `SELECT * FROM donors WHERE 1=1`;
+  let countQuery = `SELECT COUNT(*) as total FROM donors WHERE 1=1`;
+  const params = [];
+
+  if (search) {
+    query += ` AND (name LIKE ? OR contact LIKE ? OR donorId LIKE ?)`;
+    countQuery += ` AND (name LIKE ? OR contact LIKE ? OR donorId LIKE ?)`;
+    params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+  }
+  if (bloodGroup) {
+    query += ` AND bloodGroup = ?`;
+    countQuery += ` AND bloodGroup = ?`;
+    params.push(bloodGroup);
+  }
+  if (fy) {
+    query += ` AND financialYear = ?`;
+    countQuery += ` AND financialYear = ?`;
+    params.push(fy);
+  }
+  if (camp) {
+    query += ` AND camp = ?`;
+    countQuery += ` AND camp = ?`;
+    params.push(camp);
+  }
+  if (date) {
+    query += ` AND lastDonationDate = ?`;
+    countQuery += ` AND lastDonationDate = ?`;
+    params.push(date);
+  }
+  
+  if (status) {
+    if (status === 'eligible') {
+      const cond = ` AND (diseasePositive = 0 OR diseasePositive = 'false' OR diseasePositive IS NULL) AND (lastDonationDate IS NULL OR lastDonationDate <= date('now', '-90 days'))`;
+      query += cond; countQuery += cond;
+    } else if (status === 'deferred') {
+      const cond = ` AND (diseasePositive = 1 OR diseasePositive = 'true' OR diseases != '')`;
+      query += cond; countQuery += cond;
+    } else if (status === 'pending' || status === 'ineligible') {
+      const cond = ` AND (diseasePositive = 0 OR diseasePositive = 'false' OR diseasePositive IS NULL) AND (lastDonationDate > date('now', '-90 days'))`;
+      query += cond; countQuery += cond;
+    }
+  }
+
+  query += ` ORDER BY id DESC LIMIT ? OFFSET ?`;
+  const dataParams = [...params, parseInt(limit), parseInt(offset)];
+
+  db.get(countQuery, params, (err, countRow) => {
     if (err) return res.status(500).json({ error: err.message });
-    // Map donorId to id for frontend compatibility
-    const formattedRows = rows.map(r => ({
-      ...r,
-      id: r.donorId || `D-${r.id}`
-    }));
-    res.json(formattedRows);
+    
+    db.all(query, dataParams, (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      
+      const formattedRows = rows.map(r => ({
+        ...r,
+        id: r.donorId || `D-${r.id}`
+      }));
+      
+      res.json({
+        donors: formattedRows,
+        total: countRow.total,
+        page: parseInt(page),
+        totalPages: Math.ceil(countRow.total / limit)
+      });
+    });
+  });
+});
+
+app.get('/api/donors/stats', authenticateToken, (req, res) => {
+  const fy = req.query.fy;
+  const filter = fy ? `WHERE financialYear = ?` : ``;
+  const params = fy ? [fy] : [];
+
+  const queries = {
+    total: `SELECT COUNT(*) as count FROM donors ${filter}`,
+    eligible: `SELECT COUNT(*) as count FROM donors WHERE (diseasePositive = 0 OR diseasePositive = 'false' OR diseasePositive IS NULL) AND (lastDonationDate IS NULL OR lastDonationDate <= date('now', '-90 days')) ${fy ? 'AND financialYear = ?' : ''}`,
+    deferred: `SELECT COUNT(*) as count FROM donors WHERE (diseasePositive = 1 OR diseasePositive = 'true' OR diseases != '') ${fy ? 'AND financialYear = ?' : ''}`,
+    pending: `SELECT COUNT(*) as count FROM donors WHERE (diseasePositive = 0 OR diseasePositive = 'false' OR diseasePositive IS NULL) AND (lastDonationDate > date('now', '-90 days')) ${fy ? 'AND financialYear = ?' : ''}`,
+    byBloodGroup: `SELECT bloodGroup, COUNT(*) as count FROM donors WHERE (diseasePositive = 0 OR diseasePositive = 'false' OR diseasePositive IS NULL) AND (lastDonationDate IS NULL OR lastDonationDate <= date('now', '-90 days')) ${fy ? 'AND financialYear = ?' : ''} GROUP BY bloodGroup`
+  };
+
+  const results = {};
+  let completed = 0;
+  const queryKeys = Object.keys(queries);
+
+  queryKeys.forEach(key => {
+    const q = queries[key];
+    if (key === 'byBloodGroup') {
+      db.all(q, params, (err, rows) => {
+        results[key] = rows || [];
+        checkDone();
+      });
+    } else {
+      db.get(q, params, (err, row) => {
+        results[key] = row ? row.count : 0;
+        checkDone();
+      });
+    }
+  });
+
+  function checkDone() {
+    completed++;
+    if (completed === queryKeys.length) {
+      res.json(results);
+    }
+  }
+});
+
+app.get('/api/donors/fys', authenticateToken, (req, res) => {
+  db.all(`SELECT DISTINCT financialYear FROM donors WHERE financialYear IS NOT NULL ORDER BY financialYear DESC`, [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows.map(r => r.financialYear));
+  });
+});
+
+app.get('/api/donors/export', authenticateToken, (req, res) => {
+  const { search = '', bloodGroup = '', fy = '', camp = '' } = req.query;
+
+  let query = `SELECT * FROM donors WHERE 1=1`;
+  const params = [];
+
+  if (search) {
+    query += ` AND (name LIKE ? OR contact LIKE ? OR donorId LIKE ?)`;
+    params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+  }
+  if (bloodGroup) {
+    query += ` AND bloodGroup = ?`;
+    params.push(bloodGroup);
+  }
+  if (fy) {
+    query += ` AND financialYear = ?`;
+    params.push(fy);
+  }
+  if (camp) {
+    query += ` AND camp = ?`;
+    params.push(camp);
+  }
+
+  query += ` ORDER BY id DESC`;
+
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', 'attachment; filename="donors_export.csv"');
+
+  // Write CSV header
+  res.write('ID,Donor ID,Name,Relative Name,Age,Gender,Blood Group,Contact,Email,Address,Last Donation Date,Disease Positive,Diseases,Notes,Financial Year,Camp\n');
+
+  db.each(query, params, (err, row) => {
+    if (err) return; 
+    const escapeCsv = (str) => {
+      if (!str) return '';
+      const s = String(str);
+      if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+        return `"${s.replace(/"/g, '""')}"`;
+      }
+      return s;
+    };
+    
+    const line = [
+      row.id, row.donorId, row.name, row.relativeName, row.age, row.gender, row.bloodGroup,
+      row.contact, row.email, row.address, row.lastDonationDate, row.diseasePositive ? 'Yes' : 'No',
+      row.diseases, row.notes, row.financialYear, row.camp
+    ].map(escapeCsv).join(',');
+    
+    res.write(line + '\n');
+  }, (err, count) => {
+    res.end();
   });
 });
 

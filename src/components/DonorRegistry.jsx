@@ -4,7 +4,6 @@ import DonorModal from './DonorModal';
 import DonorDrawer from './DonorDrawer';
 
 function DonorRegistry({
-  donors,
   financialYear,
   addDonor,
   updateDonor,
@@ -21,9 +20,14 @@ function DonorRegistry({
   const [filterBlood, setFilterBlood] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
 
-
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 50;
+  
+  // Data states
+  const [donors, setDonors] = useState([]);
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loading, setLoading] = useState(false);
 
   // Modal and Drawer states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -51,48 +55,35 @@ function DonorRegistry({
     setCurrentPage(1);
   }, [search, filterDate, filterBlood, filterStatus, financialYear]);
 
-  // 1. Filtering logic
-  const filteredDonors = useMemo(() => {
-    return donors.filter(donor => {
-      // Financial Year filter (from sidebar)
-      if (financialYear && donor.financialYear !== financialYear) return false;
-
-      // Blood group filter
-      if (filterBlood && donor.bloodGroup !== filterBlood) return false;
-
-      // Status eligibility filter
-      if (filterStatus) {
-        const statusObj = checkEligibility(donor, donors);
-        if (filterStatus === 'eligible' && statusObj.status !== 'safe') return false;
-        if (filterStatus === 'ineligible' && statusObj.status !== 'pending') return false;
-        if (filterStatus === 'deferred' && statusObj.status !== 'deferred') return false;
+  // Fetch paginated donors
+  useEffect(() => {
+    async function loadDonors() {
+      setLoading(true);
+      try {
+        const { api } = await import('../services/api');
+        const data = await api.getDonors({
+          page: currentPage,
+          limit: rowsPerPage,
+          search,
+          bloodGroup: filterBlood,
+          fy: financialYear,
+          status: filterStatus,
+          date: filterDate
+        });
+        setDonors(data.donors);
+        setTotalRecords(data.total);
+        setTotalPages(data.totalPages || 1);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
       }
+    }
+    loadDonorsRef.current = loadDonors;
+    loadDonors();
+  }, [currentPage, search, filterBlood, financialYear, filterStatus, filterDate]);
 
-      // Specific donation date filter
-      if (filterDate && donor.lastDonationDate !== filterDate) return false;
-
-      // Search keyword filter
-      if (search.trim()) {
-        const query = search.toLowerCase();
-        const idMatch = donor.id ? String(donor.id).toLowerCase().includes(query) : false;
-        const nameMatch = donor.name ? String(donor.name).toLowerCase().includes(query) : false;
-        const contactMatch = donor.contact ? String(donor.contact).includes(query) : false;
-        const relativeMatch = donor.relativeName ? String(donor.relativeName).toLowerCase().includes(query) : false;
-        const addressMatch = donor.address ? String(donor.address).toLowerCase().includes(query) : false;
-        if (!idMatch && !nameMatch && !contactMatch && !relativeMatch && !addressMatch) return false;
-      }
-
-      return true;
-    });
-  }, [donors, financialYear, filterBlood, filterStatus, filterDate, search]);
-
-  // 2. Pagination calculation
-  const totalPages = Math.max(1, Math.ceil(filteredDonors.length / rowsPerPage));
-  const paginatedDonors = useMemo(() => {
-    const start = (currentPage - 1) * rowsPerPage;
-    const end = start + rowsPerPage;
-    return filteredDonors.slice(start, end);
-  }, [filteredDonors, currentPage]);
+  const paginatedDonors = donors;
 
   // 3. Floating Scrollbar sync useEffect
   useEffect(() => {
@@ -177,6 +168,7 @@ function DonorRegistry({
     }
     if (window.confirm(`Are you sure you want to permanently delete the profile of ${donor.name} (ID: ${donor.id})?`)) {
       await deleteDonor(donor.id);
+      if (loadDonorsRef.current) loadDonorsRef.current();
     }
   };
 
@@ -194,6 +186,7 @@ function DonorRegistry({
       await addDonor(formData);
     }
     setIsModalOpen(false);
+    if (loadDonorsRef.current) loadDonorsRef.current();
   };
 
   return (
@@ -257,10 +250,17 @@ function DonorRegistry({
             <option value="ineligible">Ineligible (Cooldown)</option>
             <option value="deferred">Deferred (Disease +)</option>
           </select>
+          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+            Total Results: <strong>{totalRecords}</strong>
+          </span>
         </div>
       </div>
 
-      {/* Registry main data table */}
+      {loading ? (
+        <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+          Loading records...
+        </div>
+      ) : (
       <div className="table-wrapper" ref={tableWrapperRef}>
         <table className="donor-table">
           <thead>
@@ -359,6 +359,7 @@ function DonorRegistry({
           </tbody>
         </table>
       </div>
+      )}
 
       {/* Floating horizontal scrollbar matching styles */}
       <div
@@ -383,7 +384,7 @@ function DonorRegistry({
       {/* Pagination component controls row */}
       <div className="pagination-container">
         <div className="pagination-info">
-          Showing {filteredDonors.length === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1} to {Math.min(currentPage * rowsPerPage, filteredDonors.length)} of {filteredDonors.length} entries
+          Showing {totalRecords === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1} to {Math.min(currentPage * rowsPerPage, totalRecords)} of {totalRecords} entries
         </div>
         <div className="pagination-buttons">
           <button
@@ -436,6 +437,31 @@ function DonorRegistry({
         onClose={() => setIsDrawerOpen(false)}
         donor={drawerDonor}
         donors={donors}
+        addDonor={async (d) => {
+          const newD = await addDonor(d);
+          if (newD) {
+            setCurrentPage(1);
+          }
+          return newD;
+        }}
+        updateDonor={async (id, data, isEdit) => {
+          const res = await updateDonor(id, data, isEdit);
+          if (res) {
+            const { api } = await import('../services/api');
+            const newData = await api.getDonors({ page: currentPage, limit: rowsPerPage, search, bloodGroup: filterBlood, fy: financialYear, status: filterStatus, date: filterDate });
+            setDonors(newData.donors);
+          }
+          return res;
+        }}
+        deleteDonor={async (id) => {
+          const res = await deleteDonor(id);
+          if (res) {
+            const { api } = await import('../services/api');
+            const newData = await api.getDonors({ page: currentPage, limit: rowsPerPage, search, bloodGroup: filterBlood, fy: financialYear, status: filterStatus, date: filterDate });
+            setDonors(newData.donors);
+          }
+          return res;
+        }}
         onEditClick={() => handleEditClick(drawerDonor)}
       />
     </div>

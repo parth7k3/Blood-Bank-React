@@ -11,7 +11,7 @@ import {
 import { filterDonationsByDateRange } from '../utils/helpers';
 import { api } from '../services/api';
 
-function ImportExport({ donors, processImportedDonorsList, getNextDonorId }) {
+function ImportExport({ processImportedDonorsList }) {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [isDragOver, setIsDragOver] = useState(false);
@@ -47,7 +47,7 @@ function ImportExport({ donors, processImportedDonorsList, getNextDonorId }) {
       
       if (extension === 'xlsx') {
         const buffer = await file.arrayBuffer();
-        parsedList = await handleExcelImport(buffer, getNextDonorId);
+        parsedList = await handleExcelImport(buffer, () => "");
       } else if (extension === 'csv') {
         const text = await file.text();
         parsedList = handleCSVImport(text);
@@ -101,60 +101,18 @@ function ImportExport({ donors, processImportedDonorsList, getNextDonorId }) {
     }
   };
 
-  // Export triggers
-  const getFilteredListForExport = () => {
-    if (!startDate && !endDate) return donors;
-    const start = startDate ? new Date(startDate) : null;
-    const end = endDate ? new Date(endDate) : null;
-    if (end) end.setHours(23, 59, 59, 999);
-
-    return donors.filter(d => {
-      if (d.donationHistory && d.donationHistory.length > 0) {
-        const matches = filterDonationsByDateRange(d.donationHistory, startDate, endDate);
-        return matches.length > 0;
-      }
-      if (d.lastDonationDate && d.lastDonationDate !== 'Never') {
-        const dDate = new Date(d.lastDonationDate);
-        if (start && dDate < start) return false;
-        if (end && dDate > end) return false;
-        return true;
-      }
-      return false;
-    });
-  };
-
-  const handleExportExcel = async () => {
-    const list = getFilteredListForExport();
-    if (list.length === 0) {
-      alert("No records found matching date range to export.");
-      return;
-    }
-    try {
-      const blob = await exportToExcel(list, startDate, endDate);
-      downloadBlob(blob, getExportFilename('vardaan_donors', 'xlsx'));
-    } catch (err) {
-      alert("Excel export failed: " + err.message);
-    }
-  };
-
   const handleExportCSV = () => {
-    const list = getFilteredListForExport();
-    if (list.length === 0) {
-      alert("No records found matching date range to export.");
-      return;
-    }
-    const blob = exportToCSV(list, startDate, endDate);
-    downloadBlob(blob, getExportFilename('vardaan_donors', 'csv'));
+    // Open the backend CSV export endpoint in a new tab to start download
+    const url = api.getExportUrl({ startDate, endDate });
+    window.open(url, '_blank');
   };
 
   const handleExportJSON = () => {
-    const list = getFilteredListForExport();
-    if (list.length === 0) {
-      alert("No records found matching date range to export.");
-      return;
-    }
-    const blob = exportToJSON(list, startDate, endDate);
-    downloadBlob(blob, getExportFilename('vardaan_donors', 'json'));
+    alert("JSON Export is no longer supported for large datasets.");
+  };
+
+  const handleExportExcel = async () => {
+    alert("Excel Export is no longer supported due to 1 million row limit. Please use CSV export.");
   };
 
   const handleDownloadTemplate = () => {

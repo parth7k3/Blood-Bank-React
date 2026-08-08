@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-export default function Camps({ camps, donors, onAddCamp, onEditCamp, onDeleteCamp, onSelectDonor }) {
+export default function Camps({ camps, onAddCamp, onEditCamp, onDeleteCamp, onSelectDonor }) {
   const [newCampName, setNewCampName] = useState('');
   const [newCampDate, setNewCampDate] = useState('');
   const [expandedCampIds, setExpandedCampIds] = useState(new Set());
@@ -28,13 +28,23 @@ export default function Camps({ camps, donors, onAddCamp, onEditCamp, onDeleteCa
     setNewCampDate('');
   };
 
-  const toggleExpand = (campId) => {
+  const [campDonorsMap, setCampDonorsMap] = useState({});
+
+  const toggleExpand = (camp) => {
     setExpandedCampIds(prev => {
       const next = new Set(prev);
-      if (next.has(campId)) {
-        next.delete(campId);
+      if (next.has(camp.id)) {
+        next.delete(camp.id);
       } else {
-        next.add(campId);
+        next.add(camp.id);
+        // Fetch donors for this camp if not already fetched
+        if (!campDonorsMap[camp.name]) {
+          import('../services/api').then(({ api }) => {
+            api.getDonors({ camp: camp.name, limit: 50 }).then(data => {
+              setCampDonorsMap(m => ({ ...m, [camp.name]: data.donors }));
+            }).catch(console.error);
+          });
+        }
       }
       return next;
     });
@@ -73,22 +83,7 @@ export default function Camps({ camps, donors, onAddCamp, onEditCamp, onDeleteCa
     }
   };
 
-  // Group donors by camp
-  const campDonorsMap = {};
   const safeCamps = Array.isArray(camps) ? camps : [];
-  const safeDonors = Array.isArray(donors) ? donors : [];
-
-  safeCamps.forEach(c => {
-    if (c?.name) {
-      campDonorsMap[c.name] = [];
-    }
-  });
-
-  safeDonors.forEach(donor => {
-    if (donor?.camp && campDonorsMap[donor.camp]) {
-      campDonorsMap[donor.camp].push(donor);
-    }
-  });
 
   return (
     <section id="camps" className="app-section">
@@ -140,13 +135,13 @@ export default function Camps({ camps, donors, onAddCamp, onEditCamp, onDeleteCa
 
               return (
                 <div key={camp.id} className={`camp-card ${isExpanded ? 'expanded' : ''}`}>
-                  <div className="camp-header" onClick={() => toggleExpand(camp.id)}>
+                  <div className="camp-header" onClick={() => toggleExpand(camp)}>
                     <div className="camp-header-left">
                       <div className="camp-title">⛺ {camp.name}</div>
                       <div className="camp-subtitle">
                         <span>📅 {camp.date || 'No Date'}</span>
                         <div className="camp-stats">
-                          <span className="camp-stat-badge">👥 {campDonors.length} Donors</span>
+                          <span className="camp-stat-badge">👥 {campDonorsMap[camp.name] ? 'Loaded' : 'Click to Load'} Donors</span>
                         </div>
                       </div>
                     </div>

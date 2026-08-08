@@ -16,7 +16,6 @@ function App() {
   });
 
   const { 
-    donors,
     camps,
     loading, 
     addDonor, 
@@ -75,16 +74,22 @@ function App() {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
-  // Extract unique financial years dynamically
-  const uniqueFYs = useMemo(() => {
-    const fySet = new Set();
-    donors.forEach(d => {
-      if (d.financialYear) {
-        fySet.add(d.financialYear);
+  const [uniqueFYs, setUniqueFYs] = useState([]);
+
+  // Fetch unique financial years dynamically
+  useEffect(() => {
+    async function loadFys() {
+      if (user) {
+        try {
+          const fys = await api.getFinancialYears();
+          setUniqueFYs(fys);
+        } catch (err) {
+          console.error(err);
+        }
       }
-    });
-    return Array.from(fySet).sort((a, b) => b.localeCompare(a));
-  }, [donors]);
+    }
+    loadFys();
+  }, [user]);
 
   // Toggle Theme helper
   const handleToggleTheme = () => {
@@ -207,15 +212,6 @@ function App() {
     setActiveTab('registry');
   }, []);
 
-  // Helper for sequential ID calculation
-  const getNextDonorId = useCallback(() => {
-    return donors.reduce((max, d) => {
-      const idStr = String(d.id || '');
-      const match = idStr.match(/^D-(\d+)$/);
-      return match ? Math.max(max, parseInt(match[1], 10)) : max;
-    }, 1000) + 1;
-  }, [donors]);
-
   if (loading) {
     return (
       <div style={{
@@ -290,7 +286,6 @@ function App() {
       <main className="main-content">
         {activeTab === 'dashboard' && (
           <Dashboard 
-            donors={donors}
             financialYear={financialYear}
             theme={theme}
             onToggleTheme={handleToggleTheme}
@@ -300,7 +295,6 @@ function App() {
 
         {activeTab === 'registry' && (
           <DonorRegistry 
-            donors={donors}
             camps={camps}
             financialYear={financialYear}
             addDonor={handleAddDonor}
@@ -315,16 +309,13 @@ function App() {
 
         {activeTab === 'importexport' && (
           <ImportExport 
-            donors={donors}
             processImportedDonorsList={handleProcessImportedDonorsList}
-            getNextDonorId={getNextDonorId}
           />
         )}
 
         {activeTab === 'camps' && (
           <Camps 
             camps={camps}
-            donors={donors}
             onAddCamp={addCamp}
             onEditCamp={editCamp}
             onDeleteCamp={deleteCamp}
