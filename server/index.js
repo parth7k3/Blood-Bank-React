@@ -521,8 +521,9 @@ app.delete('/api/donors/:id', authenticateToken, (req, res) => {
   const donorIdParam = req.params.id;
   const isNumeric = !isNaN(parseInt(donorIdParam)) && parseInt(donorIdParam).toString() === donorIdParam.toString();
   const sql = isNumeric ? `DELETE FROM donors WHERE id = ?` : `DELETE FROM donors WHERE donorId = ?`;
+  const paramValue = isNumeric ? parseInt(donorIdParam) : donorIdParam;
 
-  db.run(sql, donorIdParam, function(err) {
+  db.run(sql, paramValue, function(err) {
     if (err) return res.status(500).json({ error: err.message });
     insertLog(req.user.username, 'DELETE_DONOR', `Deleted donor ID: ${donorIdParam}`);
     res.json({ success: true, changes: this.changes });

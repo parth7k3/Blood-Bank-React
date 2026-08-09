@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { checkEligibility, getDiseaseScreeningResults } from '../utils/helpers';
 import DonorModal from './DonorModal';
 import DonorDrawer from './DonorDrawer';
@@ -168,7 +169,6 @@ function DonorRegistry({
 
   const handleDeleteClick = async (donor) => {
     if (!user) {
-      alert("Please login as Admin to delete donor profiles.");
       onLoginClick();
       return;
     }
@@ -526,8 +526,8 @@ function DonorRegistry({
         onEditClick={() => handleEditClick(drawerDonor)}
       />
       {/* Delete Confirmation Modal */}
-      {donorToDelete && (
-        <div className="modal-overlay">
+      {donorToDelete && createPortal(
+        <div className="modal-overlay" style={{ zIndex: 9999 }}>
           <div className="modal-content" style={{ maxWidth: '400px' }}>
             <div className="modal-header">
               <h3 style={{ color: '#ef4444' }}>⚠️ Confirm Deletion</h3>
@@ -543,7 +543,8 @@ function DonorRegistry({
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
