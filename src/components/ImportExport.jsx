@@ -47,7 +47,7 @@ function ImportExport({ processImportedDonorsList }) {
       
       if (extension === 'xlsx') {
         const buffer = await file.arrayBuffer();
-        parsedList = await handleExcelImport(buffer, () => "");
+        parsedList = await handleExcelImport(buffer);
       } else if (extension === 'csv') {
         const text = await file.text();
         parsedList = handleCSVImport(text);

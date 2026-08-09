@@ -11,7 +11,7 @@ import {
   filterDonationsByDateRange
 } from './helpers';
 
-export async function handleExcelImport(arrayBuffer, getNextDonorId) {
+export async function handleExcelImport(arrayBuffer) {
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(arrayBuffer);
   const worksheet = workbook.getWorksheet(1) || workbook.worksheets[0];
@@ -32,8 +32,6 @@ export async function handleExcelImport(arrayBuffer, getNextDonorId) {
   const parsedImport = [];
 
   if (isDoubleColumn) {
-    let nextIdNum = getNextDonorId();
-
     const parseSide = (row, cols, defaultFY) => {
       let name = cleanString(row.getCell(cols.name).value);
       if (!name || name === 'Name' || name === 'Name ') return null;
@@ -70,20 +68,7 @@ export async function handleExcelImport(arrayBuffer, getNextDonorId) {
 
       const dateStr = parseExcelDate(row.getCell(cols.date));
       
-      let customId = '';
-      if (cols.sr) {
-        const srVal = cleanString(row.getCell(cols.sr).value);
-        if (srVal) {
-          const num = parseInt(srVal.replace(/\D/g, ''), 10);
-          if (!isNaN(num) && num > 0) {
-            customId = 'D-' + String(num).padStart(4, '0');
-          }
-        }
-      }
-      const id = customId || `D-${nextIdNum++}`;
-
       return {
-        id: id,
         name,
         relativeName,
         address: cleanString(row.getCell(cols.address).value),
@@ -136,9 +121,8 @@ export async function handleExcelImport(arrayBuffer, getNextDonorId) {
       if (rightDonor) parsedImport.push(rightDonor);
     });
   } else {
-    // --- Standard Single-Table spreadsheet importer ---
+    // Single column dynamic format mapping
     let headers = [];
-    let nextIdNum = getNextDonorId();
 
     let headerRowNumber = 1;
     for (let r = 1; r <= worksheet.rowCount; r++) {
@@ -214,21 +198,7 @@ export async function handleExcelImport(arrayBuffer, getNextDonorId) {
           isDisPos = diseasesVal !== '';
         }
 
-        const srNoCell = getValueByHeader('sr') || getValueByHeader('s.no') || getValueByHeader('s/n') || getValueByHeader('serial') || getValueByHeader('id');
-        let customId = '';
-        if (srNoCell) {
-          const srVal = cleanString(srNoCell.value);
-          if (srVal) {
-            const num = parseInt(srVal.replace(/\D/g, ''), 10);
-            if (!isNaN(num) && num > 0) {
-              customId = 'D-' + String(num).padStart(4, '0');
-            }
-          }
-        }
-        const id = customId || `D-${nextIdNum++}`;
-
         parsedImport.push({
-          id: id,
           name: cleanString(nameCell.value),
           relativeName: fatherCell ? cleanString(fatherCell.value) : '',
           address: addrCell ? cleanString(addrCell.value) : '',

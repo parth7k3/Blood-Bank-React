@@ -308,7 +308,7 @@ function DonorRegistry({
         <table className="donor-table">
           <thead>
             <tr>
-              <th>ID</th>
+              <th>{financialYear ? 'S.No' : 'ID'}</th>
               <th>Donor Demographics</th>
               <th>Blood Camp</th>
               <th>Blood Group</th>
@@ -330,7 +330,7 @@ function DonorRegistry({
                 </td>
               </tr>
             ) : (
-              paginatedDonors.map(donor => {
+              paginatedDonors.map((donor, index) => {
                 const diseases = getDiseaseScreeningResults(donor.diseases);
                 const isDeferred = donor.diseasePositive;
 
@@ -341,7 +341,17 @@ function DonorRegistry({
                     className={isDeferred ? 'infected-row' : ''}
                     style={{ cursor: 'pointer' }}
                   >
-                    <td>{donor.id}</td>
+                    <td>
+                      {financialYear ? (
+                        <span style={{ fontWeight: 600, color: 'var(--primary-color)' }}>
+                          {filterSort === 'latest' 
+                            ? totalRecords - ((currentPage - 1) * rowsPerPage) - index 
+                            : ((currentPage - 1) * rowsPerPage) + index + 1}
+                        </span>
+                      ) : (
+                        <span className="badge">{donor.id}</span>
+                      )}
+                    </td>
                     <td>
                       <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>{donor.name}</div>
                       <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '2px' }}>
