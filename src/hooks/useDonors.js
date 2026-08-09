@@ -118,9 +118,9 @@ export function useDonors(user) {
   }, []);
 
   // Reset Database
-  const resetDatabase = useCallback(async () => {
+  const resetDatabase = useCallback(async (password) => {
     try {
-      await api.resetDatabase();
+      await api.resetDatabase(password);
       setCamps([]);
     } catch (err) {
       console.error("Failed to reset database", err);

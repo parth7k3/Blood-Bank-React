@@ -203,12 +203,16 @@ export const api = {
     return `${API_BASE_URL}/system/backup`;
   },
 
-  resetDatabase: async () => {
+  resetDatabase: async (password) => {
     const res = await fetch(`${API_BASE_URL}/reset`, {
-      method: 'DELETE',
-      headers: getHeaders()
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ password })
     });
-    if (!res.ok) throw new Error('Failed to reset database');
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Failed to reset database');
+    }
     return res.json();
   }
 };

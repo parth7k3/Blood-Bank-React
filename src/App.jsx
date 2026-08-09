@@ -113,8 +113,15 @@ function App() {
     }
     
     if (window.confirm("WARNING: Are you sure you want to completely clear the entire database? This action cannot be undone.")) {
-      await resetDatabase();
-      alert("Database reset successfully.");
+      const password = window.prompt("Security Check: Please enter your Admin password to proceed with the database reset.");
+      if (!password) return;
+      
+      try {
+        await resetDatabase(password);
+        alert("Database reset successfully.");
+      } catch (err) {
+        alert("Reset failed: " + (err.message || "Invalid password"));
+      }
     }
   };
 

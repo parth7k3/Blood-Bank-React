@@ -611,19 +611,32 @@ app.get('/api/system/backup', authenticateToken, (req, res) => {
 });
 
 // Fallback to index.html for React Router / SPA routing
-app.delete('/api/reset', authenticateToken, requireAdmin, (req, res) => {
-  db.serialize(() => {
-    db.run(`DELETE FROM donors`, (err) => {
-      if (err) console.error("Error clearing donors:", err);
+app.post('/api/reset', authenticateToken, requireAdmin, (req, res) => {
+  const { password } = req.body;
+  if (!password) {
+    return res.status(400).json({ error: 'Admin password is required to reset database' });
+  }
+
+  db.get(`SELECT password FROM users WHERE username = ?`, [req.user.username], (err, user) => {
+    if (err) return res.status(500).json({ error: 'Database error' });
+    if (!user) return res.status(401).json({ error: 'Admin user not found' });
+
+    const isValid = bcrypt.compareSync(password, user.password);
+    if (!isValid) return res.status(401).json({ error: 'Invalid admin password' });
+
+    db.serialize(() => {
+      db.run(`DELETE FROM donors`, (err) => {
+        if (err) console.error("Error clearing donors:", err);
+      });
+      db.run(`DELETE FROM camps`, (err) => {
+        if (err) console.error("Error clearing camps:", err);
+      });
+      db.run(`DELETE FROM sqlite_sequence WHERE name='donors' OR name='camps'`, (err) => {
+        if (err) console.error("Error resetting sequence:", err);
+      });
+      insertLog(req.user.username, 'RESET_DB', 'Database was completely reset');
+      res.json({ success: true, message: "Database reset successfully" });
     });
-    db.run(`DELETE FROM camps`, (err) => {
-      if (err) console.error("Error clearing camps:", err);
-    });
-    db.run(`DELETE FROM sqlite_sequence WHERE name='donors' OR name='camps'`, (err) => {
-      if (err) console.error("Error resetting sequence:", err);
-    });
-    insertLog(req.user.username, 'RESET_DB', 'Database was completely reset');
-    res.json({ success: true, message: "Database reset successfully" });
   });
 });
 
