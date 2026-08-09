@@ -420,27 +420,37 @@ export async function exportToExcel(filteredList, startDate, endDate) {
     };
   }
 
-  // Style data rows
-  for (let r = 5; r <= worksheet.rowCount; r++) {
-    const rVal = worksheet.getRow(r);
-    rVal.height = 20;
+  // Style data rows ONLY if dataset is small enough (under 10,000 rows)
+  // For massive datasets (up to 500k), we skip cell-by-cell styling to prevent memory crashes!
+  if (filteredList.length <= 10000) {
+    for (let r = 5; r <= worksheet.rowCount; r++) {
+      const rVal = worksheet.getRow(r);
+      rVal.height = 20;
 
-    const isPos = rVal.getCell(12).value === 'Screen Positive';
-    const cellColor = isPos ? 'FFFEE2E2' : 'FFFFFFFF'; // Light Red background for disease positive entries
-    const textColor = isPos ? 'FF991B1B' : 'FF334155';
+      const isPos = rVal.getCell(12).value === 'Screen Positive';
+      const cellColor = isPos ? 'FFFEE2E2' : 'FFFFFFFF'; // Light Red background for disease positive entries
+      const textColor = isPos ? 'FF991B1B' : 'FF334155';
 
-    for (let c = 1; c <= 19; c++) {
-      const cell = rVal.getCell(c);
-      cell.font = { name: 'Inter', size: 10, color: { argb: textColor } };
-      cell.fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: cellColor }
-      };
-      cell.border = {
-        bottom: { style: 'thin', color: { argb: 'FFF1F5F9' } }
-      };
+      for (let c = 1; c <= 19; c++) {
+        const cell = rVal.getCell(c);
+        cell.font = { name: 'Inter', size: 10, color: { argb: textColor } };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: cellColor }
+        };
+        cell.border = {
+          bottom: { style: 'thin', color: { argb: 'FFF1F5F9' } }
+        };
+      }
     }
+  } else {
+    // For large datasets, just set default fonts on columns to save GBs of RAM
+    worksheet.columns.forEach(column => {
+      if (!column.font) {
+        column.font = { name: 'Inter', size: 10, color: { argb: 'FF334155' } };
+      }
+    });
   }
 
   const buffer = await workbook.xlsx.writeBuffer();

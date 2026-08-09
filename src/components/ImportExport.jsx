@@ -112,7 +112,23 @@ function ImportExport({ processImportedDonorsList }) {
   };
 
   const handleExportExcel = async () => {
-    alert("Excel Export is no longer supported due to 1 million row limit. Please use CSV export.");
+    try {
+      setImportStatus({ type: 'success', text: 'Preparing Excel Export. This may take a minute for large datasets...' });
+      const stats = await api.getStats();
+      if (stats.total > 500000) {
+        setImportStatus(null);
+        alert("Dataset is too large for Excel export (over 500,000 rows). Please use CSV export instead.");
+        return;
+      }
+      
+      const res = await api.getDonors({ limit: 500000 });
+      const allDonors = res.data || [];
+      const blob = await exportToExcel(allDonors, startDate, endDate);
+      downloadBlob(blob, getExportFilename('vardaan_donor_database', 'xlsx'));
+      setImportStatus({ type: 'success', text: 'Excel Export downloaded successfully!' });
+    } catch (err) {
+      setImportStatus({ type: 'error', text: 'Failed to export Excel: ' + err.message });
+    }
   };
 
   const handleDownloadTemplate = () => {
