@@ -39,6 +39,7 @@ function DonorRegistry({
   const tableWrapperRef = useRef(null);
   const floatScrollRef = useRef(null);
   const floatContentRef = useRef(null);
+  const loadDonorsRef = useRef(null);
 
   // Apply incoming filters from Dashboard
   useEffect(() => {
