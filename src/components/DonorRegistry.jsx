@@ -35,6 +35,9 @@ function DonorRegistry({
   const [selectedDonor, setSelectedDonor] = useState(null); // For edit/view
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [drawerDonor, setDrawerDonor] = useState(null);
+  
+  // Delete confirm modal state
+  const [donorToDelete, setDonorToDelete] = useState(null);
 
   // References for the floating scrollbar
   const tableWrapperRef = useRef(null);
@@ -169,8 +172,13 @@ function DonorRegistry({
       onLoginClick();
       return;
     }
-    if (window.confirm(`Are you sure you want to permanently delete the profile of ${donor.name} (ID: ${donor.id})?`)) {
-      await deleteDonor(donor.id);
+    setDonorToDelete(donor);
+  };
+
+  const confirmDeleteDonor = async () => {
+    if (donorToDelete) {
+      await deleteDonor(donorToDelete.id);
+      setDonorToDelete(null);
       if (loadDonorsRef.current) loadDonorsRef.current();
     }
   };
@@ -517,6 +525,26 @@ function DonorRegistry({
         }}
         onEditClick={() => handleEditClick(drawerDonor)}
       />
+      {/* Delete Confirmation Modal */}
+      {donorToDelete && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '400px' }}>
+            <div className="modal-header">
+              <h3 style={{ color: '#ef4444' }}>⚠️ Confirm Deletion</h3>
+              <button className="close-btn" onClick={() => setDonorToDelete(null)}>×</button>
+            </div>
+            <div className="modal-body" style={{ padding: '1.5rem' }}>
+              <p style={{ color: 'var(--text-main)', marginBottom: '1.5rem', fontSize: '0.95rem' }}>
+                Are you sure you want to permanently delete the profile of <strong>{donorToDelete.name}</strong> (ID: {donorToDelete.id})? This action cannot be undone.
+              </p>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button type="button" onClick={() => setDonorToDelete(null)} className="btn btn-secondary" style={{ flex: 1, padding: '10px' }}>Cancel</button>
+                <button type="button" onClick={confirmDeleteDonor} className="btn btn-primary" style={{ flex: 1, padding: '10px', background: '#ef4444' }}>Delete Donor</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
