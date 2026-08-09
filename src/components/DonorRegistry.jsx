@@ -403,7 +403,7 @@ function DonorRegistry({
                         {diseases.mp !== 'NEG' ? diseases.mp : 'NEG'}
                       </span>
                     </td>
-                    <td onClick={(e) => e.stopPropagation()}>
+                    <td>
                       <div className="action-buttons">
                         <button className="action-btn edit-btn" data-id={donor.id} title="Edit Donor Information">
                           ✍️

@@ -122,7 +122,29 @@ function ImportExport({ processImportedDonorsList }) {
       }
       
       const res = await api.getDonors({ limit: 500000 });
-      const allDonors = res.data || [];
+      let allDonors = res.donors || [];
+      
+      // Apply date filters client-side for the export
+      if (startDate || endDate) {
+        const start = startDate ? new Date(startDate) : null;
+        const end = endDate ? new Date(endDate) : null;
+        if (end) end.setHours(23, 59, 59, 999);
+        
+        allDonors = allDonors.filter(d => {
+          if (!d.lastDonationDate) return false;
+          const dDate = new Date(d.lastDonationDate);
+          if (start && dDate < start) return false;
+          if (end && dDate > end) return false;
+          return true;
+        });
+      }
+
+      if (allDonors.length === 0) {
+        setImportStatus(null);
+        alert("No donors found in the selected date range.");
+        return;
+      }
+
       const blob = await exportToExcel(allDonors, startDate, endDate);
       downloadBlob(blob, getExportFilename('vardaan_donor_database', 'xlsx'));
       setImportStatus({ type: 'success', text: 'Excel Export downloaded successfully!' });
