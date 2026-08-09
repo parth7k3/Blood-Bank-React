@@ -59,6 +59,11 @@ function App() {
   const [registryFilters, setRegistryFilters] = useState(null);
   const [systemInfo, setSystemInfo] = useState(null);
 
+  // Reset DB modal states
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [resetPassword, setResetPassword] = useState('');
+  const [resetError, setResetError] = useState('');
+
   // Fetch system info for network banner
   useEffect(() => {
     async function fetchSysInfo() {
@@ -111,17 +116,22 @@ function App() {
       setIsLoginOpen(true);
       return;
     }
+    setResetPassword('');
+    setResetError('');
+    setIsResetModalOpen(true);
+  };
+
+  const executeResetDatabase = async (e) => {
+    e.preventDefault();
+    if (!resetPassword) return;
     
-    if (window.confirm("WARNING: Are you sure you want to completely clear the entire database? This action cannot be undone.")) {
-      const password = window.prompt("Security Check: Please enter your Admin password to proceed with the database reset.");
-      if (!password) return;
-      
-      try {
-        await resetDatabase(password);
-        alert("Database reset successfully.");
-      } catch (err) {
-        alert("Reset failed: " + (err.message || "Invalid password"));
-      }
+    setResetError('');
+    try {
+      await resetDatabase(resetPassword);
+      setIsResetModalOpen(false);
+      alert("Database reset successfully.");
+    } catch (err) {
+      setResetError(err.message || "Invalid password");
     }
   };
 
@@ -611,6 +621,42 @@ function App() {
                 )}
               </form>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Database Reset Password Modal */}
+      {isResetModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '400px' }}>
+            <div className="modal-header">
+              <h3 style={{ color: '#ef4444' }}>⚠️ Security Check</h3>
+              <button className="close-btn" onClick={() => setIsResetModalOpen(false)}>×</button>
+            </div>
+            <div className="modal-body" style={{ padding: '1.5rem' }}>
+              <p style={{ color: 'var(--text-main)', marginBottom: '1rem', fontSize: '0.9rem' }}>
+                Are you sure you want to completely clear the entire database? This action cannot be undone.
+              </p>
+              <form onSubmit={executeResetDatabase} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {resetError && (
+                  <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#fca5a5', padding: '10px', borderRadius: '6px', fontSize: '0.8rem', textAlign: 'center' }}>
+                    {resetError}
+                  </div>
+                )}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '0.78rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>Admin Password</label>
+                  <input 
+                    type="password" value={resetPassword} onChange={(e) => setResetPassword(e.target.value)}
+                    placeholder="Enter admin password to proceed" required
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.25)', color: '#fff', outline: 'none', fontSize: '0.95rem' }}
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: '12px', marginTop: '0.5rem' }}>
+                  <button type="button" onClick={() => setIsResetModalOpen(false)} className="btn btn-secondary" style={{ flex: 1, padding: '10px' }}>Cancel</button>
+                  <button type="submit" className="btn btn-primary" style={{ flex: 1, padding: '10px', background: '#ef4444' }}>Wipe Database</button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}
