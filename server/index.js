@@ -6,7 +6,8 @@ const path = require('path');
 const os = require('os');
 const db = require('./db');
 const nodemailer = require('nodemailer');
-const path = require('path');
+const fs = require('fs');
+const readline = require('readline');
 
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
@@ -27,11 +28,64 @@ const pendingOtps = {}; // In-memory OTP store
 
 const insertLog = (username, action, details) => {
   const timestamp = new Date().toISOString();
+  
+  // 1. Log to Database
   db.run(`INSERT INTO logs (timestamp, username, action, details) VALUES (?, ?, ?, ?)`, 
     [timestamp, username, action, details], (err) => {
-      if (err) console.error("Failed to insert log:", err.message);
+      if (err) console.error("Failed to insert log to DB:", err.message);
     });
+    
+  // 2. Log to Flat File
+  const logEntry = `[${timestamp}] [${action}] USER: ${username} - DETAILS: ${details}\n`;
+  const auditFile = path.join(__dirname, 'audit.log');
+  fs.appendFile(auditFile, logEntry, (err) => {
+    if (err) console.error("Failed to write to audit.log:", err.message);
+  });
 };
+
+const cleanupOldLogs = () => {
+  const thresholdDate = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+  
+  // Delete from DB
+  db.run(`DELETE FROM logs WHERE timestamp < ?`, [thresholdDate], function(err) {
+    if (err) console.error("Error cleaning old DB logs:", err.message);
+    else if (this.changes > 0) console.log(`Cleaned up ${this.changes} old logs from DB.`);
+  });
+  
+  // Clean flat file
+  const auditFile = path.join(__dirname, 'audit.log');
+  const tempFile = path.join(__dirname, 'audit.tmp.log');
+  
+  if (fs.existsSync(auditFile)) {
+    const rl = readline.createInterface({
+      input: fs.createReadStream(auditFile),
+      crlfDelay: Infinity
+    });
+    const writeStream = fs.createWriteStream(tempFile);
+    
+    rl.on('line', (line) => {
+      const match = line.match(/^\[(.*?)\]/);
+      if (match && match[1]) {
+        if (match[1] >= thresholdDate) {
+          writeStream.write(line + '\n');
+        }
+      } else {
+        writeStream.write(line + '\n');
+      }
+    });
+    
+    rl.on('close', () => {
+      writeStream.end();
+      fs.rename(tempFile, auditFile, (err) => {
+        if (err) console.error("Failed to rename temp audit file:", err.message);
+      });
+    });
+  }
+};
+
+// Run cleanup on startup, then every 24 hours
+cleanupOldLogs();
+setInterval(cleanupOldLogs, 24 * 60 * 60 * 1000);
 
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
@@ -39,6 +93,9 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Serve the React frontend statically
 app.use(express.static(path.join(__dirname, '../dist')));
+
+// React Router fallback (must be placed before generic error handlers, but after API routes)
+// Wait, this needs to be at the very bottom of the file!
 
 // --- Authentication Middleware ---
 const authenticateToken = (req, res, next) => {
@@ -63,10 +120,26 @@ const requireAdmin = (req, res, next) => {
   next();
 };
 
+app.get('/api/network', (req, res) => {
+  const nets = os.networkInterfaces();
+  const results = [];
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name]) {
+      // Skip over non-IPv4 and internal (i.e. 127.0.0.1) addresses
+      if (net.family === 'IPv4' && !net.internal) {
+        results.push(net.address);
+      }
+    }
+  }
+  const hostname = os.hostname();
+  res.json({ ips: results, hostname, port: PORT });
+});
+
 // --- Auth Routes ---
 app.post('/api/auth/register/request-otp', (req, res) => {
-  const { username, password } = req.body;
+  let { username, password } = req.body;
   if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
+  username = username.toLowerCase();
   
   db.get(`SELECT * FROM users WHERE username = ?`, [username], (err, user) => {
     if (err) return res.status(500).json({ error: err.message });
@@ -100,7 +173,8 @@ app.post('/api/auth/register/request-otp', (req, res) => {
 });
 
 app.post('/api/auth/register/verify-otp', (req, res) => {
-  const { username, otp } = req.body;
+  let { username, otp } = req.body;
+  if (username) username = username.toLowerCase();
   const record = pendingOtps[username];
   
   if (!record) return res.status(400).json({ error: 'No pending registration found' });
@@ -117,8 +191,65 @@ app.post('/api/auth/register/verify-otp', (req, res) => {
     res.json({ token, role: 'staff', username });
   });
 });
+// --- Password Recovery Routes ---
+app.post('/api/auth/recover/request-otp', (req, res) => {
+  let { username } = req.body;
+  if (!username) return res.status(400).json({ error: 'Username required' });
+  username = username.toLowerCase();
+  
+  db.get(`SELECT * FROM users WHERE username = ?`, [username], (err, user) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!user) return res.status(400).json({ error: 'Username not found' });
+    
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    pendingOtps[username] = { otp, expires: Date.now() + 10 * 60000, recovery: true };
+    
+    const mailOptions = {
+      from: '"Vardaan Blood Centre" <no-reply@vardaan.org>',
+      to: 'neelu.jan01@gmail.com',
+      subject: 'OTP for Account Recovery',
+      text: `Account recovery requested for username "${username}".\n\nThe OTP to reset their password is: ${otp}\n\nThis OTP expires in 10 minutes.`
+    };
+    
+    if (transporter) {
+      transporter.sendMail(mailOptions, (error, info) => {
+        if (error) {
+          console.error('Error sending OTP email:', error);
+          return res.status(500).json({ error: 'Failed to send OTP email' });
+        }
+        res.json({ success: true, message: 'OTP sent to admin email' });
+      });
+    } else {
+      res.status(500).json({ error: 'Mail transporter not ready yet' });
+    }
+  });
+});
+
+app.post('/api/auth/recover/reset-password', (req, res) => {
+  let { username, otp, newPassword } = req.body;
+  if (username) username = username.toLowerCase();
+  const record = pendingOtps[username];
+  
+  if (!record || !record.recovery) return res.status(400).json({ error: 'No pending recovery found' });
+  if (Date.now() > record.expires) {
+    delete pendingOtps[username];
+    return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
+  }
+  if (record.otp !== otp) return res.status(400).json({ error: 'Invalid OTP' });
+  if (!newPassword) return res.status(400).json({ error: 'New password required' });
+  
+  const hash = bcrypt.hashSync(newPassword, 8);
+  db.run(`UPDATE users SET password = ? WHERE username = ?`, [hash, username], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    delete pendingOtps[username];
+    insertLog(username, 'RECOVER_ACCOUNT', 'User reset their password via OTP');
+    res.json({ success: true, message: 'Password reset successfully' });
+  });
+});
+
 app.post('/api/auth/login', (req, res) => {
-  const { username, password } = req.body;
+  let { username, password } = req.body;
+  if (username) username = username.toLowerCase();
   
   db.get(`SELECT * FROM users WHERE username = ?`, [username], (err, user) => {
     if (err) return res.status(500).json({ error: err.message });
@@ -134,7 +265,16 @@ app.post('/api/auth/login', (req, res) => {
 });
 
 app.get('/api/logs', authenticateToken, requireAdmin, (req, res) => {
-  db.all(`SELECT * FROM logs ORDER BY id DESC`, [], (err, rows) => {
+  const { date } = req.query;
+  let query = `SELECT * FROM logs`;
+  let params = [];
+  if (date) {
+    query += ` WHERE timestamp LIKE ?`;
+    params.push(`${date}%`);
+  }
+  query += ` ORDER BY id DESC`;
+
+  db.all(query, params, (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(rows);
   });

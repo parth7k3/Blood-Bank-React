@@ -11,6 +11,12 @@ const getHeaders = () => {
 };
 
 export const api = {
+  getNetworkInfo: async () => {
+    const res = await fetch(`${API_BASE_URL}/network`);
+    if (!res.ok) throw new Error('Failed to fetch network info');
+    return res.json();
+  },
+
   login: async (username, password) => {
     const res = await fetch(`${API_BASE_URL}/auth/login`, {
       method: 'POST',
@@ -40,6 +46,28 @@ export const api = {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Invalid OTP');
+    return data;
+  },
+  
+  requestRecoveryOtp: async (username) => {
+    const res = await fetch(`${API_BASE_URL}/auth/recover/request-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to request OTP');
+    return data;
+  },
+
+  resetPassword: async (username, otp, newPassword) => {
+    const res = await fetch(`${API_BASE_URL}/auth/recover/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, otp, newPassword })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to reset password');
     return data;
   },
   
@@ -163,8 +191,10 @@ export const api = {
   },
 
   // Logs
-  getLogs: async () => {
-    const res = await fetch(`${API_BASE_URL}/logs`, { headers: getHeaders() });
+  getLogs: async (date = '') => {
+    let url = `${API_BASE_URL}/logs`;
+    if (date) url += `?date=${encodeURIComponent(date)}`;
+    const res = await fetch(url, { headers: getHeaders() });
     if (!res.ok) throw new Error('Failed to fetch logs');
     return res.json();
   },

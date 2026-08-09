@@ -189,6 +189,37 @@ function DonorRegistry({
     if (loadDonorsRef.current) loadDonorsRef.current();
   };
 
+  // Master Event Listener for Table (Event Delegation)
+  const handleTableClick = (e) => {
+    // 1. Check for action buttons first
+    const editBtn = e.target.closest('button.edit-btn');
+    const deleteBtn = e.target.closest('button.delete-btn');
+    
+    if (editBtn) {
+      e.stopPropagation();
+      const id = editBtn.getAttribute('data-id');
+      const donor = paginatedDonors.find(d => String(d.id) === String(id));
+      if (donor) handleEditClick(donor);
+      return;
+    }
+    
+    if (deleteBtn) {
+      e.stopPropagation();
+      const id = deleteBtn.getAttribute('data-id');
+      const donor = paginatedDonors.find(d => String(d.id) === String(id));
+      if (donor) handleDeleteClick(donor);
+      return;
+    }
+    
+    // 2. Check for row click (view profile)
+    const row = e.target.closest('tr[data-id]');
+    if (row) {
+      const id = row.getAttribute('data-id');
+      const donor = paginatedDonors.find(d => String(d.id) === String(id));
+      if (donor) handleRowClick(donor);
+    }
+  };
+
   return (
     <div className="glass-panel">
       {/* Header controls bar */}
@@ -279,7 +310,7 @@ function DonorRegistry({
               <th>Actions</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody onClick={handleTableClick}>
             {paginatedDonors.length === 0 ? (
               <tr>
                 <td colSpan="12" style={{ textAlign: 'center', color: 'var(--text-dark)', padding: '3rem' }}>
@@ -294,9 +325,9 @@ function DonorRegistry({
                 return (
                   <tr
                     key={donor.id}
+                    data-id={donor.id}
                     className={isDeferred ? 'infected-row' : ''}
                     style={{ cursor: 'pointer' }}
-                    onClick={() => handleRowClick(donor)}
                   >
                     <td>{donor.id}</td>
                     <td>
@@ -344,10 +375,10 @@ function DonorRegistry({
                     </td>
                     <td onClick={(e) => e.stopPropagation()}>
                       <div className="action-buttons">
-                        <button className="action-btn edit-btn" onClick={() => handleEditClick(donor)} title="Edit Donor Information">
+                        <button className="action-btn edit-btn" data-id={donor.id} title="Edit Donor Information">
                           ✍️
                         </button>
-                        <button className="action-btn delete-btn" onClick={() => handleDeleteClick(donor)} title="Delete Donor Profile">
+                        <button className="action-btn delete-btn" data-id={donor.id} title="Delete Donor Profile">
                           🗑️
                         </button>
                       </div>

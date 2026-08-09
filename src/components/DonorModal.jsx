@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import { api } from '../services/api';
 
 function DonorModal({ isOpen, onClose, onSave, donor, camps = [], donors = [] }) {
   const [srNo, setSrNo] = useState('');
@@ -74,22 +75,33 @@ function DonorModal({ isOpen, onClose, onSave, donor, camps = [], donors = [] })
     }
   }, [donor, isOpen]);
 
-  const filteredDonors = useMemo(() => {
-    if (!name.trim()) return [];
-    const search = name.toLowerCase();
-    const unique = [];
-    const seen = new Set();
-    for (const d of donors) {
-      if (d.name && String(d.name).toLowerCase().includes(search)) {
-        if (!seen.has(String(d.name).toLowerCase())) {
-          seen.add(String(d.name).toLowerCase());
-          unique.push(d);
-        }
-      }
-      if (unique.length > 8) break;
+  const [filteredDonors, setFilteredDonors] = useState([]);
+
+  useEffect(() => {
+    if (!name.trim()) {
+      setFilteredDonors([]);
+      return;
     }
-    return unique;
-  }, [donors, name]);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await api.getDonors({ search: name, limit: 10 });
+        if (res && res.donors) {
+          const unique = [];
+          const seen = new Set();
+          for (const d of res.donors) {
+            if (d.name && !seen.has(String(d.name).toLowerCase())) {
+              seen.add(String(d.name).toLowerCase());
+              unique.push(d);
+            }
+          }
+          setFilteredDonors(unique);
+        }
+      } catch (err) {
+        console.error("Autocomplete fetch error", err);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [name]);
 
   const filteredCamps = useMemo(() => {
     if (!camp.trim()) return [];

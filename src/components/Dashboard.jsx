@@ -7,6 +7,7 @@ function Dashboard({ financialYear, theme, onToggleTheme, onNavigateToRegistry }
     'A+': 0, 'A-': 0, 'B+': 0, 'B-': 0, 'AB+': 0, 'AB-': 0, 'O+': 0, 'O-': 0
   });
   const [loading, setLoading] = useState(true);
+  const [networkInfo, setNetworkInfo] = useState(null);
 
   useEffect(() => {
     async function loadStats() {
@@ -30,6 +31,14 @@ function Dashboard({ financialYear, theme, onToggleTheme, onNavigateToRegistry }
           });
         }
         setBloodInventory(newInventory);
+        
+        // Load network info
+        try {
+          const netData = await api.getNetworkInfo();
+          setNetworkInfo(netData);
+        } catch (e) {
+          console.error('Failed to load network info', e);
+        }
       } catch (err) {
         console.error("Failed to load dashboard stats", err);
       } finally {
@@ -63,6 +72,27 @@ function Dashboard({ financialYear, theme, onToggleTheme, onNavigateToRegistry }
           </div>
         </div>
       </header>
+
+      {/* Network Access Info */}
+      {networkInfo && (
+        <div style={{ background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.2)', padding: '1rem', borderRadius: '8px', marginBottom: '2rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <div style={{ fontWeight: 600, color: '#3b82f6', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span>🌐</span> Connect other devices on your network using:
+          </div>
+          <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', marginTop: '0.25rem' }}>
+            <div style={{ background: 'var(--bg-main)', padding: '0.5rem 1rem', borderRadius: '6px', fontSize: '0.9rem', border: '1px solid var(--border-color)' }}>
+              <span style={{ color: 'var(--text-muted)', marginRight: '8px' }}>Option 1 (Hostname):</span>
+              <strong>http://{networkInfo.hostname}:{networkInfo.port}</strong>
+            </div>
+            {networkInfo.ips && networkInfo.ips.length > 0 && (
+              <div style={{ background: 'var(--bg-main)', padding: '0.5rem 1rem', borderRadius: '6px', fontSize: '0.9rem', border: '1px solid var(--border-color)' }}>
+                <span style={{ color: 'var(--text-muted)', marginRight: '8px' }}>Option 2 (IP Address):</span>
+                <strong>http://{networkInfo.ips[0]}:{networkInfo.port}</strong>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Stats Quick Grid widgets */}
       <div className="dashboard-grid">

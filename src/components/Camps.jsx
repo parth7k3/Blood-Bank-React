@@ -86,7 +86,7 @@ export default function Camps({ camps, onAddCamp, onEditCamp, onDeleteCamp, onSe
   const safeCamps = Array.isArray(camps) ? camps : [];
 
   return (
-    <section id="camps" className="app-section">
+    <section id="camps">
       <div className="glass-panel">
         <div className="panel-header">
           <div className="panel-title">

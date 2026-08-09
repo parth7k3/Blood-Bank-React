@@ -48,6 +48,14 @@ function App() {
   const [registerError, setRegisterError] = useState('');
   const [registerMessage, setRegisterMessage] = useState('');
   
+  // Recovery states
+  const [recoverUsername, setRecoverUsername] = useState('');
+  const [recoverPassword, setRecoverPassword] = useState('');
+  const [recoverOtpStep, setRecoverOtpStep] = useState(false);
+  const [recoverOtpCode, setRecoverOtpCode] = useState('');
+  const [recoverError, setRecoverError] = useState('');
+  const [recoverMessage, setRecoverMessage] = useState('');
+  
   const [registryFilters, setRegistryFilters] = useState(null);
   const [systemInfo, setSystemInfo] = useState(null);
 
@@ -161,6 +169,42 @@ function App() {
       alert("Registration successful! You are now logged in.");
     } catch (err) {
       setRegisterError(err.message || 'Invalid OTP');
+      if (err.message && (err.message.toLowerCase().includes('expired') || err.message.toLowerCase().includes('pending'))) {
+        setOtpStep(false);
+      }
+    }
+  };
+
+  // Recovery handlers
+  const handleRecoverRequest = async (e) => {
+    e.preventDefault();
+    setRecoverError('');
+    setRecoverMessage('');
+    try {
+      const res = await api.requestRecoveryOtp(recoverUsername);
+      setRecoverMessage(res.message);
+      setRecoverOtpStep(true);
+    } catch (err) {
+      setRecoverError(err.message || 'Failed to request OTP');
+    }
+  };
+
+  const handleRecoverReset = async (e) => {
+    e.preventDefault();
+    setRecoverError('');
+    try {
+      await api.resetPassword(recoverUsername, recoverOtpCode, recoverPassword);
+      setRecoverUsername('');
+      setRecoverPassword('');
+      setRecoverOtpCode('');
+      setRecoverOtpStep(false);
+      setAuthTab('login');
+      alert("Password reset successfully! You can now log in.");
+    } catch (err) {
+      setRecoverError(err.message || 'Failed to reset password');
+      if (err.message && (err.message.toLowerCase().includes('expired') || err.message.toLowerCase().includes('pending'))) {
+        setRecoverOtpStep(false);
+      }
     }
   };
 
@@ -423,6 +467,9 @@ function App() {
                   <button type="button" onClick={() => setIsLoginOpen(false)} className="btn btn-secondary" style={{ flex: 1, padding: '10px' }}>Cancel</button>
                   <button type="submit" className="btn btn-primary" style={{ flex: 1, padding: '10px', background: '#991b1b' }}>🔐 Authorize</button>
                 </div>
+                <div style={{ textAlign: 'center', marginTop: '0.5rem' }}>
+                  <button type="button" onClick={() => setAuthTab('recover')} style={{ background: 'none', border: 'none', color: '#60a5fa', fontSize: '0.8rem', cursor: 'pointer', padding: 0 }}>Forgot Password?</button>
+                </div>
               </form>
             )}
 
@@ -486,6 +533,72 @@ function App() {
                     <div style={{ display: 'flex', gap: '12px', marginTop: '0.5rem' }}>
                       <button type="button" onClick={() => setOtpStep(false)} className="btn btn-secondary" style={{ flex: 1, padding: '10px' }}>Back</button>
                       <button type="submit" className="btn btn-primary" style={{ flex: 1, padding: '10px', background: '#16a34a' }}>Verify & Register</button>
+                    </div>
+                  </>
+                )}
+              </form>
+            )}
+
+            {authTab === 'recover' && (
+              <form onSubmit={recoverOtpStep ? handleRecoverReset : handleRecoverRequest} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                <div style={{ textAlign: 'center', marginBottom: '0.5rem' }}>
+                  <h3 style={{ margin: '0 0 6px 0', color: '#f8fafc', fontSize: '1.25rem', fontWeight: 700 }}>
+                    Account Recovery
+                  </h3>
+                  <p style={{ margin: 0, color: '#64748b', fontSize: '0.85rem' }}>
+                    Reset your staff password
+                  </p>
+                </div>
+
+                {recoverError && (
+                  <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', color: '#fca5a5', padding: '10px', borderRadius: '6px', fontSize: '0.8rem', textAlign: 'center' }}>
+                    ⚠️ {recoverError}
+                  </div>
+                )}
+                
+                {recoverMessage && (
+                  <div style={{ background: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.2)', color: '#86efac', padding: '10px', borderRadius: '6px', fontSize: '0.8rem', textAlign: 'center' }}>
+                    ✅ {recoverMessage}
+                  </div>
+                )}
+
+                {!recoverOtpStep ? (
+                  <>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '0.78rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>Your Username</label>
+                      <input 
+                        type="text" value={recoverUsername} onChange={(e) => setRecoverUsername(e.target.value)}
+                        placeholder="Enter username" required
+                        style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.25)', color: '#fff', outline: 'none', fontSize: '0.95rem' }}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', gap: '12px', marginTop: '0.5rem' }}>
+                      <button type="button" onClick={() => setAuthTab('login')} className="btn btn-secondary" style={{ flex: 1, padding: '10px' }}>Cancel</button>
+                      <button type="submit" className="btn btn-primary" style={{ flex: 1, padding: '10px', background: '#2563eb' }}>Request OTP</button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '0.78rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>6-Digit OTP Code</label>
+                      <p style={{ margin: 0, fontSize: '0.75rem', color: '#cbd5e1', marginBottom: '8px' }}>Ask the administrator for the OTP sent to their email.</p>
+                      <input 
+                        type="text" value={recoverOtpCode} onChange={(e) => setRecoverOtpCode(e.target.value)}
+                        placeholder="e.g. 123456" required maxLength={6}
+                        style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.25)', color: '#fff', outline: 'none', fontSize: '0.95rem', letterSpacing: '2px' }}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '0.78rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>New Password</label>
+                      <input 
+                        type="password" value={recoverPassword} onChange={(e) => setRecoverPassword(e.target.value)}
+                        placeholder="Enter new password" required
+                        style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.25)', color: '#fff', outline: 'none', fontSize: '0.95rem' }}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', gap: '12px', marginTop: '0.5rem' }}>
+                      <button type="button" onClick={() => setRecoverOtpStep(false)} className="btn btn-secondary" style={{ flex: 1, padding: '10px' }}>Back</button>
+                      <button type="submit" className="btn btn-primary" style={{ flex: 1, padding: '10px', background: '#16a34a' }}>Reset Password</button>
                     </div>
                   </>
                 )}
