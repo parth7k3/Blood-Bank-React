@@ -372,6 +372,7 @@ app.get('/api/donors', authenticateToken, (req, res) => {
       
       const formattedRows = rows.map(r => ({
         ...r,
+        dbId: r.id,
         id: r.donorId || `D-${r.id}`
       }));
       
@@ -500,9 +501,14 @@ app.post('/api/donors', authenticateToken, (req, res) => {
 
 app.put('/api/donors/:id', authenticateToken, (req, res) => {
   const donorIdParam = req.params.id;
+  const isNumeric = !isNaN(parseInt(donorIdParam)) && parseInt(donorIdParam).toString() === donorIdParam.toString();
   const { name, relativeName, age, gender, bloodGroup, contact, email, address, lastDonationDate, diseasePositive, diseases, notes, financialYear, donationHistory, camp } = req.body;
   
-  db.run(`UPDATE donors SET name = ?, relativeName = ?, age = ?, gender = ?, bloodGroup = ?, contact = ?, email = ?, address = ?, lastDonationDate = ?, diseasePositive = ?, diseases = ?, notes = ?, financialYear = ?, donationHistory = ?, camp = ? WHERE donorId = ?`,
+  const sql = isNumeric 
+    ? `UPDATE donors SET name = ?, relativeName = ?, age = ?, gender = ?, bloodGroup = ?, contact = ?, email = ?, address = ?, lastDonationDate = ?, diseasePositive = ?, diseases = ?, notes = ?, financialYear = ?, donationHistory = ?, camp = ? WHERE id = ?`
+    : `UPDATE donors SET name = ?, relativeName = ?, age = ?, gender = ?, bloodGroup = ?, contact = ?, email = ?, address = ?, lastDonationDate = ?, diseasePositive = ?, diseases = ?, notes = ?, financialYear = ?, donationHistory = ?, camp = ? WHERE donorId = ?`;
+
+  db.run(sql,
     [name, relativeName, age, gender, bloodGroup, contact, email, address, lastDonationDate, diseasePositive, diseases, notes, financialYear, donationHistory ? JSON.stringify(donationHistory) : null, camp, donorIdParam],
     function(err) {
       if (err) return res.status(500).json({ error: err.message });
@@ -512,9 +518,13 @@ app.put('/api/donors/:id', authenticateToken, (req, res) => {
 });
 
 app.delete('/api/donors/:id', authenticateToken, (req, res) => {
-  db.run(`DELETE FROM donors WHERE donorId = ?`, req.params.id, function(err) {
+  const donorIdParam = req.params.id;
+  const isNumeric = !isNaN(parseInt(donorIdParam)) && parseInt(donorIdParam).toString() === donorIdParam.toString();
+  const sql = isNumeric ? `DELETE FROM donors WHERE id = ?` : `DELETE FROM donors WHERE donorId = ?`;
+
+  db.run(sql, donorIdParam, function(err) {
     if (err) return res.status(500).json({ error: err.message });
-    insertLog(req.user.username, 'DELETE_DONOR', `Deleted donor ID: ${req.params.id}`);
+    insertLog(req.user.username, 'DELETE_DONOR', `Deleted donor ID: ${donorIdParam}`);
     res.json({ success: true, changes: this.changes });
   });
 });

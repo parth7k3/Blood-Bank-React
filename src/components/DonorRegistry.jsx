@@ -177,7 +177,7 @@ function DonorRegistry({
 
   const confirmDeleteDonor = async () => {
     if (donorToDelete) {
-      await deleteDonor(donorToDelete.id);
+      await deleteDonor(donorToDelete.dbId || donorToDelete.id);
       setDonorToDelete(null);
       if (loadDonorsRef.current) loadDonorsRef.current();
     }
@@ -191,7 +191,7 @@ function DonorRegistry({
   const handleSaveDonor = async (formData) => {
     if (selectedDonor) {
       // Update
-      await updateDonor(selectedDonor.id, formData, true);
+      await updateDonor(selectedDonor.dbId || selectedDonor.id, formData, true);
     } else {
       // Add
       await addDonor(formData);

@@ -121,7 +121,7 @@ function ImportExport({ processImportedDonorsList }) {
         return;
       }
       
-      const res = await api.getDonors({ limit: 500000 });
+      const res = await api.getDonors({ limit: 500000, sort: 'oldest' });
       let allDonors = res.donors || [];
       
       // Apply date filters client-side for the export

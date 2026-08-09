@@ -328,7 +328,7 @@ export async function exportToExcel(filteredList, startDate, endDate) {
   const worksheet = workbook.addWorksheet('Donor Database');
 
   worksheet.columns = [
-    { header: 'Donor ID', key: 'id', width: 12 },
+    { header: 'S.No', key: 'sno', width: 10 },
     { header: 'Financial Year', key: 'financialYear', width: 15 },
     { header: 'Name', key: 'name', width: 25 },
     { header: 'Father/Husband Name', key: 'relativeName', width: 25 },
@@ -370,7 +370,7 @@ export async function exportToExcel(filteredList, startDate, endDate) {
   subtitleRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
   subtitleRow.height = 20;
 
-  filteredList.forEach(d => {
+  filteredList.forEach((d, index) => {
     let exportDate = d.lastDonationDate || 'Never';
     if (startDate || endDate) {
       const matchingDonations = filterDonationsByDateRange(d.donationHistory, startDate, endDate);
@@ -382,7 +382,7 @@ export async function exportToExcel(filteredList, startDate, endDate) {
     const sRes = getDiseaseScreeningResults(d.diseases);
 
     worksheet.addRow({
-      id: d.id,
+      sno: index + 1,
       financialYear: getFinancialYear(exportDate, d.financialYear),
       name: d.name,
       relativeName: d.relativeName || '',
