@@ -19,6 +19,7 @@ function DonorRegistry({
   const [filterDate, setFilterDate] = useState('');
   const [filterBlood, setFilterBlood] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [filterSort, setFilterSort] = useState('latest');
 
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 50;
@@ -54,7 +55,7 @@ function DonorRegistry({
   // Reset pagination if filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, filterDate, filterBlood, filterStatus, financialYear]);
+  }, [search, filterDate, filterBlood, filterStatus, filterSort, financialYear]);
 
   // Fetch paginated donors
   useEffect(() => {
@@ -69,7 +70,8 @@ function DonorRegistry({
           bloodGroup: filterBlood,
           fy: financialYear,
           status: filterStatus,
-          date: filterDate
+          date: filterDate,
+          sort: filterSort
         });
         setDonors(data.donors);
         setTotalRecords(data.total);
@@ -82,7 +84,7 @@ function DonorRegistry({
     }
     loadDonorsRef.current = loadDonors;
     loadDonors();
-  }, [currentPage, search, filterBlood, financialYear, filterStatus, filterDate]);
+  }, [currentPage, search, filterBlood, financialYear, filterStatus, filterDate, filterSort]);
 
   const paginatedDonors = donors;
 
@@ -281,6 +283,15 @@ function DonorRegistry({
             <option value="eligible">Eligible (Ready)</option>
             <option value="ineligible">Ineligible (Cooldown)</option>
             <option value="deferred">Deferred (Disease +)</option>
+          </select>
+
+          <select
+            className="select-input"
+            value={filterSort}
+            onChange={(e) => setFilterSort(e.target.value)}
+          >
+            <option value="latest">Sort: Latest</option>
+            <option value="oldest">Sort: Oldest</option>
           </select>
           <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
             Total Results: <strong>{totalRecords}</strong>

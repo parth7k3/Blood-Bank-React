@@ -360,7 +360,8 @@ app.get('/api/donors', authenticateToken, (req, res) => {
     }
   }
 
-  query += ` ORDER BY id DESC LIMIT ? OFFSET ?`;
+  const orderStr = req.query.sort === 'oldest' ? 'ASC' : 'DESC';
+  query += ` ORDER BY id ${orderStr} LIMIT ? OFFSET ?`;
   const dataParams = [...params, parseInt(limit), parseInt(offset)];
 
   db.get(countQuery, params, (err, countRow) => {
