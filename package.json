@@ -15,7 +15,7 @@
     "appId": "com.vardaan.bloodbank",
     "productName": "Vardaan Blood Centre Server",
     "directories": {
-      "output": "release/"
+      "output": "release"
     },
     "win": {
       "target": "nsis",
