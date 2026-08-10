@@ -73,9 +73,18 @@ export const api = {
   
   // Donors
   getDonors: async (params = {}) => {
+    params._t = Date.now();
     const query = new URLSearchParams(params).toString();
     const res = await fetch(`${API_BASE_URL}/donors?${query}`, { headers: getHeaders() });
     if (!res.ok) throw new Error('Failed to fetch donors');
+    return res.json();
+  },
+
+  getStats: async (params = {}) => {
+    params._t = Date.now();
+    const query = new URLSearchParams(params).toString();
+    const res = await fetch(`${API_BASE_URL}/donors/stats?${query}`, { headers: getHeaders() });
+    if (!res.ok) throw new Error('Failed to fetch stats');
     return res.json();
   },
 
@@ -98,7 +107,7 @@ export const api = {
   },
 
   getFinancialYears: async () => {
-    const res = await fetch(`${API_BASE_URL}/donors/fys`, { headers: getHeaders() });
+    const res = await fetch(`${API_BASE_URL}/donors/fys?t=${Date.now()}`, { headers: getHeaders() });
     if (!res.ok) throw new Error('Failed to fetch financial years');
     return res.json();
   },

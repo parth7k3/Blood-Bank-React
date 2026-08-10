@@ -20,7 +20,7 @@
     "win": {
       "target": "nsis",
       "icon": "public/icon.svg",
-      "artifactName": "Vardaan-Blood-Centre-Update8.2.exe"
+      "artifactName": "Vardaan-Blood-Centre-Update8.3.exe"
     },
     "nsis": {
       "oneClick": true,
