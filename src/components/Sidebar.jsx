@@ -49,11 +49,18 @@ function Sidebar({
                 </a>
               </li>
               {user && user.role === 'admin' && (
-                <li className={`nav-item ${activeTab === 'logs' ? 'active' : ''}`}>
-                  <a href="#logs" onClick={(e) => { e.preventDefault(); setActiveTab('logs'); }}>
-                    <span className="nav-icon">📝</span> System Logs
-                  </a>
-                </li>
+                <>
+                  <li className={`nav-item ${activeTab === 'logs' ? 'active' : ''}`}>
+                    <a href="#logs" onClick={(e) => { e.preventDefault(); setActiveTab('logs'); }}>
+                      <span className="nav-icon">📝</span> System Logs
+                    </a>
+                  </li>
+                  <li className={`nav-item ${activeTab === 'staff' ? 'active' : ''}`}>
+                    <a href="#staff" onClick={(e) => { e.preventDefault(); setActiveTab('staff'); }}>
+                      <span className="nav-icon">🪪</span> Staff Directory
+                    </a>
+                  </li>
+                </>
               )}
             </ul>
           </nav>
@@ -116,13 +123,15 @@ function Sidebar({
             )}
           </div>
 
-          <button 
-            className="btn btn-secondary btn-sm" 
-            onClick={onResetDatabase}
-            style={{ marginBottom: '0.5rem', width: '100%', borderColor: 'rgba(239, 68, 68, 0.2)', color: '#fca5a5', fontSize: '0.72rem' }}
-          >
-            ⚠️ Reset to Default Data
-          </button>
+          {user && user.role === 'admin' && (
+            <button 
+              className="btn btn-secondary btn-sm" 
+              onClick={onResetDatabase}
+              style={{ marginBottom: '0.5rem', width: '100%', borderColor: 'rgba(239, 68, 68, 0.2)', color: '#fca5a5', fontSize: '0.72rem' }}
+            >
+              ⚠️ Reset to Default Data
+            </button>
+          )}
           <p style={{ margin: 0, fontSize: '0.7rem', color: '#64748b' }}>Vardaan Blood Bank v1.0.0</p>
           <p style={{ margin: 0, fontSize: '0.7rem', color: '#64748b' }}>Secure React Instance</p>
         </div>

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { toast } from 'react-hot-toast';
 
 export default function Camps({ camps, onAddCamp, onEditCamp, onDeleteCamp, onSelectDonor }) {
   const [newCampName, setNewCampName] = useState('');
@@ -13,13 +14,13 @@ export default function Camps({ camps, onAddCamp, onEditCamp, onDeleteCamp, onSe
   const handleCreateCamp = (e) => {
     e.preventDefault();
     if (!newCampName.trim()) {
-      alert('Please enter a valid camp name.');
+      toast.error('Please enter a valid camp name.');
       return;
     }
 
     const safeCamps = Array.isArray(camps) ? camps : [];
     if (safeCamps.some(c => c?.name && String(c.name).toLowerCase() === newCampName.trim().toLowerCase())) {
-      alert('A camp with this name already exists.');
+      toast.error('A camp with this name already exists.');
       return;
     }
 
@@ -59,7 +60,7 @@ export default function Camps({ camps, onAddCamp, onEditCamp, onDeleteCamp, onSe
 
   const handleSaveEdit = () => {
     if (!editName.trim()) {
-      alert('Please enter a valid camp name.');
+      toast.error('Please enter a valid camp name.');
       return;
     }
 
@@ -68,7 +69,7 @@ export default function Camps({ camps, onAddCamp, onEditCamp, onDeleteCamp, onSe
       editName.trim().toLowerCase() !== String(editingCamp.name).toLowerCase() &&
       safeCamps.some(c => c?.name && String(c.name).toLowerCase() === editName.trim().toLowerCase())
     ) {
-      alert('A camp with this name already exists.');
+      toast.error('A camp with this name already exists.');
       return;
     }
 

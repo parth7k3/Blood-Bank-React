@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 function Dashboard({ financialYear, theme, onToggleTheme, onNavigateToRegistry }) {
   const [metrics, setMetrics] = useState({ total: 0, eligible: 0, deferred: 0, pending: 0 });
@@ -157,6 +158,68 @@ function Dashboard({ financialYear, theme, onToggleTheme, onNavigateToRegistry }
               </div>
             );
           })}
+        </div>
+      </div>
+
+      {/* Analytics Charts */}
+      <div style={{ marginTop: '3rem', paddingBottom: '2rem' }}>
+        <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1.2rem', color: 'var(--text-main)' }}>
+          Analytics Overview
+        </h3>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2rem' }}>
+          {/* Pie Chart */}
+          <div style={{ flex: '1 1 400px', background: 'var(--bg-main)', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+            <h4 style={{ marginBottom: '1rem', textAlign: 'center', color: 'var(--text-main)' }}>Blood Type Distribution</h4>
+            <div style={{ width: '100%', height: 300 }}>
+              <ResponsiveContainer>
+                <PieChart>
+                  <Pie
+                    data={Object.entries(bloodInventory).map(([name, value]) => ({ name, value })).filter(d => d.value > 0)}
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={100}
+                    fill="#8884d8"
+                    dataKey="value"
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  >
+                    {Object.entries(bloodInventory).filter(d => d[1] > 0).map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6', '#d946ef'][index % 8]} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{ background: 'var(--bg-main)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-main)' }} 
+                    itemStyle={{ color: 'var(--text-main)' }} 
+                  />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Bar Chart */}
+          <div style={{ flex: '1 1 400px', background: 'var(--bg-main)', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+            <h4 style={{ marginBottom: '1rem', textAlign: 'center', color: 'var(--text-main)' }}>Donor Status Breakdown</h4>
+            <div style={{ width: '100%', height: 300 }}>
+              <ResponsiveContainer>
+                <BarChart
+                  data={[
+                    { name: 'Eligible', Donors: metrics.eligible, fill: '#10b981' },
+                    { name: 'Deferred', Donors: metrics.deferred, fill: '#ef4444' },
+                    { name: 'Recent', Donors: metrics.pending, fill: '#3b82f6' }
+                  ]}
+                  margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                >
+                  <XAxis dataKey="name" stroke="var(--text-muted)" />
+                  <YAxis stroke="var(--text-muted)" allowDecimals={false} />
+                  <Tooltip 
+                    cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                    contentStyle={{ background: 'var(--bg-main)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-main)' }} 
+                  />
+                  <Bar dataKey="Donors" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
         </div>
       </div>
 

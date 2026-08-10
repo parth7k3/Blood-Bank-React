@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { toast } from 'react-hot-toast';
 import { 
   handleExcelImport, 
   handleCSVImport, 
@@ -108,7 +109,7 @@ function ImportExport({ processImportedDonorsList }) {
   };
 
   const handleExportJSON = () => {
-    alert("JSON Export is no longer supported for large datasets.");
+    toast.error("JSON Export is no longer supported for large datasets.");
   };
 
   const handleExportExcel = async () => {
@@ -117,7 +118,7 @@ function ImportExport({ processImportedDonorsList }) {
       const stats = await api.getStats();
       if (stats.total > 500000) {
         setImportStatus(null);
-        alert("Dataset is too large for Excel export (over 500,000 rows). Please use CSV export instead.");
+        toast.error("Dataset is too large for Excel export (over 500,000 rows). Please use CSV export instead.");
         return;
       }
       
@@ -141,7 +142,7 @@ function ImportExport({ processImportedDonorsList }) {
 
       if (allDonors.length === 0) {
         setImportStatus(null);
-        alert("No donors found in the selected date range.");
+        toast.error("No donors found in the selected date range.");
         return;
       }
 

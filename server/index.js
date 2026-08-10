@@ -11,6 +11,21 @@ const readline = require('readline');
 
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
+// Determine a writable data directory for log files etc.
+// In Electron, __dirname is inside the read-only .asar, so we use userData instead.
+let DATA_DIR;
+try {
+  const { app: electronApp } = require('electron');
+  if (electronApp && electronApp.getPath) {
+    DATA_DIR = path.join(electronApp.getPath('userData'), 'server');
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+  } else {
+    DATA_DIR = __dirname;
+  }
+} catch (e) {
+  DATA_DIR = __dirname;
+}
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 const JWT_SECRET = 'super-secret-blood-bank-key-change-in-prod';
@@ -37,7 +52,7 @@ const insertLog = (username, action, details) => {
     
   // 2. Log to Flat File
   const logEntry = `[${timestamp}] [${action}] USER: ${username} - DETAILS: ${details}\n`;
-  const auditFile = path.join(__dirname, 'audit.log');
+  const auditFile = path.join(DATA_DIR, 'audit.log');
   fs.appendFile(auditFile, logEntry, (err) => {
     if (err) console.error("Failed to write to audit.log:", err.message);
   });
@@ -53,8 +68,8 @@ const cleanupOldLogs = () => {
   });
   
   // Clean flat file
-  const auditFile = path.join(__dirname, 'audit.log');
-  const tempFile = path.join(__dirname, 'audit.tmp.log');
+  const auditFile = path.join(DATA_DIR, 'audit.log');
+  const tempFile = path.join(DATA_DIR, 'audit.tmp.log');
   
   if (fs.existsSync(auditFile)) {
     const rl = readline.createInterface({
@@ -116,6 +131,13 @@ const authenticateToken = (req, res, next) => {
 const requireAdmin = (req, res, next) => {
   if (req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Admin access required' });
+  }
+  next();
+};
+
+const requireManagerOrAdmin = (req, res, next) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'manager') {
+    return res.status(403).json({ error: 'Manager or Admin access required' });
   }
   next();
 };
@@ -263,14 +285,47 @@ app.post('/api/auth/login', (req, res) => {
     res.json({ token, role: user.role, username: user.username });
   });
 });
+app.get('/api/users', authenticateToken, requireAdmin, (req, res) => {
+  db.all(`SELECT id, username, role FROM users ORDER BY role ASC, username ASC`, [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows);
+  });
+});
+
+app.put('/api/users/:username/role', authenticateToken, requireAdmin, (req, res) => {
+  const { username } = req.params;
+  const { role } = req.body;
+  if (!['admin', 'manager', 'staff'].includes(role)) {
+    return res.status(400).json({ error: 'Invalid role' });
+  }
+
+  // Prevent modifying the primary admin
+  db.get(`SELECT id FROM users WHERE username = ?`, [username], (err, user) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (user.id === 1) return res.status(403).json({ error: 'Cannot modify primary admin role' });
+
+    db.run(`UPDATE users SET role = ? WHERE username = ?`, [role, username], function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      insertLog(req.user.username, 'UPDATE_ROLE', `Changed role of ${username} to ${role}`);
+      res.json({ success: true });
+    });
+  });
+});
+
 
 app.get('/api/logs', authenticateToken, requireAdmin, (req, res) => {
-  const { date } = req.query;
-  let query = `SELECT * FROM logs`;
+  const { date, username } = req.query;
+  let query = `SELECT * FROM logs WHERE 1=1`;
   let params = [];
+  
   if (date) {
-    query += ` WHERE timestamp LIKE ?`;
+    query += ` AND timestamp LIKE ?`;
     params.push(`${date}%`);
+  }
+  if (username) {
+    query += ` AND username = ?`;
+    params.push(username);
   }
   query += ` ORDER BY id DESC`;
 
@@ -313,6 +368,31 @@ app.post('/api/donors/bulk', authenticateToken, (req, res) => {
 });
 
 // --- Donors Routes ---
+app.get('/api/donors/lookup', authenticateToken, (req, res) => {
+  const phone = req.query.phone;
+  if (!phone) return res.status(400).json({ error: 'Phone number is required' });
+  
+  db.get(`SELECT * FROM donors WHERE contact = ? ORDER BY id DESC LIMIT 1`, [phone], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!row) return res.json(null);
+    
+    // Format the response just like GET /api/donors
+    const formattedRow = {
+      ...row,
+      dbId: row.id,
+      id: row.donorId || `D-${row.id}`
+    };
+    if (formattedRow.donationHistory) {
+      try {
+        formattedRow.donationHistory = JSON.parse(formattedRow.donationHistory);
+      } catch (e) {
+        formattedRow.donationHistory = [];
+      }
+    }
+    res.json(formattedRow);
+  });
+});
+
 app.get('/api/donors', authenticateToken, (req, res) => {
   const { page = 1, limit = 50, search = '', bloodGroup = '', fy = '', camp = '', status = '', date = '' } = req.query;
   const offset = (page - 1) * limit;
@@ -517,7 +597,7 @@ app.put('/api/donors/:id', authenticateToken, (req, res) => {
     });
 });
 
-app.delete('/api/donors/:id', authenticateToken, (req, res) => {
+app.delete('/api/donors/:id', authenticateToken, requireManagerOrAdmin, (req, res) => {
   const donorIdParam = req.params.id;
   const isNumeric = !isNaN(parseInt(donorIdParam)) && parseInt(donorIdParam).toString() === donorIdParam.toString();
   const sql = isNumeric ? `DELETE FROM donors WHERE id = ?` : `DELETE FROM donors WHERE donorId = ?`;
@@ -660,9 +740,37 @@ app.use((req, res, next) => {
   }
 });
 
+// --- Automated Background Backups ---
+const setupAutomatedBackups = () => {
+  // Run every 24 hours (86400000 ms)
+  setInterval(() => {
+    try {
+      const dbPath = path.join(DATA_DIR, 'database.sqlite');
+      if (fs.existsSync(dbPath)) {
+        const backupDir = path.join(os.homedir(), 'Desktop', 'Vardaan Backups');
+        if (!fs.existsSync(backupDir)) {
+          fs.mkdirSync(backupDir, { recursive: true });
+        }
+        
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const backupFile = path.join(backupDir, `database_backup_${timestamp}.sqlite`);
+        
+        // Copy the file
+        fs.copyFileSync(dbPath, backupFile);
+        console.log(`[BACKUP] Automatically backed up database to ${backupFile}`);
+        insertLog('SYSTEM', 'AUTO_BACKUP', `Database backed up to ${backupFile}`);
+      }
+    } catch (err) {
+      console.error("[BACKUP ERROR] Failed to run automated backup:", err);
+      insertLog('SYSTEM', 'AUTO_BACKUP_ERROR', `Failed to backup database: ${err.message}`);
+    }
+  }, 24 * 60 * 60 * 1000); 
+};
+
 // Start Server with EADDRINUSE handling
 const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
+  setupAutomatedBackups(); // Start background backup loop
 });
 
 server.on('error', (e) => {

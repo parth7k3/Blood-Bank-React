@@ -79,6 +79,12 @@ export const api = {
     return res.json();
   },
 
+  lookupDonorByPhone: async (phone) => {
+    const res = await fetch(`${API_BASE_URL}/donors/lookup?phone=${encodeURIComponent(phone)}`, { headers: getHeaders() });
+    if (!res.ok) throw new Error('Failed to lookup donor');
+    return res.json();
+  },
+
   getStats: async (fy = '') => {
     const res = await fetch(`${API_BASE_URL}/donors/stats?fy=${fy}`, { headers: getHeaders() });
     if (!res.ok) throw new Error('Failed to fetch stats');
@@ -189,11 +195,30 @@ export const api = {
     if (!res.ok) throw new Error('Failed to fetch system info');
     return res.json();
   },
+  getUsers: async () => {
+    const res = await fetch(`${API_BASE_URL}/users`, { headers: getHeaders() });
+    if (!res.ok) throw new Error('Failed to fetch users');
+    return res.json();
+  },
+
+  updateUserRole: async (username, role) => {
+    const res = await fetch(`${API_BASE_URL}/users/${encodeURIComponent(username)}/role`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify({ role })
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Failed to update user role');
+    }
+    return res.json();
+  },
 
   // Logs
-  getLogs: async (date = '') => {
-    let url = `${API_BASE_URL}/logs`;
-    if (date) url += `?date=${encodeURIComponent(date)}`;
+  getLogs: async (date = '', username = '') => {
+    let url = `${API_BASE_URL}/logs?`;
+    if (date) url += `date=${encodeURIComponent(date)}&`;
+    if (username) url += `username=${encodeURIComponent(username)}`;
     const res = await fetch(url, { headers: getHeaders() });
     if (!res.ok) throw new Error('Failed to fetch logs');
     return res.json();

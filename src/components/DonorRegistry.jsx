@@ -167,17 +167,21 @@ function DonorRegistry({
     setIsDrawerOpen(false);
   };
 
-  const handleDeleteClick = async (donor) => {
-    if (!user) {
-      onLoginClick();
-      return;
-    }
+  const handleDeleteClick = (donor) => {
+    console.log('[DELETE] handleDeleteClick called for donor:', donor.id, donor.dbId, donor.name);
     setDonorToDelete(donor);
   };
 
   const confirmDeleteDonor = async () => {
     if (donorToDelete) {
-      await deleteDonor(donorToDelete.dbId || donorToDelete.id);
+      const deleteId = donorToDelete.dbId || donorToDelete.id;
+      console.log('[DELETE] confirmDeleteDonor called, deleting by id:', deleteId, 'donor:', donorToDelete.name);
+      try {
+        const result = await deleteDonor(deleteId);
+        console.log('[DELETE] deleteDonor result:', result);
+      } catch (err) {
+        console.error('[DELETE] deleteDonor error:', err);
+      }
       setDonorToDelete(null);
       if (loadDonorsRef.current) loadDonorsRef.current();
     }
@@ -200,29 +204,12 @@ function DonorRegistry({
     if (loadDonorsRef.current) loadDonorsRef.current();
   };
 
-  // Master Event Listener for Table (Event Delegation)
+  // Master Event Listener for Table (Event Delegation - row clicks only)
   const handleTableClick = (e) => {
-    // 1. Check for action buttons first
-    const editBtn = e.target.closest('button.edit-btn');
-    const deleteBtn = e.target.closest('button.delete-btn');
+    // Skip if an action button was clicked (handled by direct onClick)
+    if (e.target.closest('.action-buttons')) return;
     
-    if (editBtn) {
-      e.stopPropagation();
-      const id = editBtn.getAttribute('data-id');
-      const donor = paginatedDonors.find(d => String(d.id) === String(id));
-      if (donor) handleEditClick(donor);
-      return;
-    }
-    
-    if (deleteBtn) {
-      e.stopPropagation();
-      const id = deleteBtn.getAttribute('data-id');
-      const donor = paginatedDonors.find(d => String(d.id) === String(id));
-      if (donor) handleDeleteClick(donor);
-      return;
-    }
-    
-    // 2. Check for row click (view profile)
+    // Check for row click (view profile)
     const row = e.target.closest('tr[data-id]');
     if (row) {
       const id = row.getAttribute('data-id');
@@ -308,8 +295,27 @@ function DonorRegistry({
       </div>
 
       {loading ? (
-        <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-          Loading records...
+        <div className="table-wrapper" style={{ overflow: 'hidden' }}>
+          <table className="donor-table">
+            <thead>
+              <tr>
+                <th>ID</th><th>Donor Demographics</th><th>Blood Camp</th><th>Blood Group</th><th>Contact Information</th><th>Donation Date</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[1, 2, 3, 4, 5].map(i => (
+                <tr key={i} className="skeleton-row">
+                  <td><div className="skeleton-box"></div></td>
+                  <td><div className="skeleton-box"></div></td>
+                  <td><div className="skeleton-box"></div></td>
+                  <td><div className="skeleton-box"></div></td>
+                  <td><div className="skeleton-box"></div></td>
+                  <td><div className="skeleton-box"></div></td>
+                  <td><div className="skeleton-box"></div></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       ) : (
       <div className="table-wrapper" ref={tableWrapperRef}>
@@ -341,12 +347,22 @@ function DonorRegistry({
               paginatedDonors.map((donor, index) => {
                 const diseases = getDiseaseScreeningResults(donor.diseases);
                 const isDeferred = donor.diseasePositive;
+                
+                let glowClass = '';
+                if (!isDeferred && donor.lastDonationDate) {
+                  const daysSince = Math.floor((new Date() - new Date(donor.lastDonationDate)) / (1000 * 60 * 60 * 24));
+                  if (daysSince >= 90) {
+                    glowClass = 'row-eligible-glow';
+                  } else if (daysSince < 30) {
+                    glowClass = 'row-recent-glow';
+                  }
+                }
 
                 return (
                   <tr
                     key={donor.id}
                     data-id={donor.id}
-                    className={isDeferred ? 'infected-row' : ''}
+                    className={`${isDeferred ? 'infected-row' : ''} ${glowClass}`}
                     style={{ cursor: 'pointer' }}
                   >
                     <td>
@@ -405,12 +421,14 @@ function DonorRegistry({
                     </td>
                     <td>
                       <div className="action-buttons">
-                        <button className="action-btn edit-btn" data-id={donor.id} title="Edit Donor Information">
+                        <button className="action-btn edit-btn" onClick={(e) => { e.stopPropagation(); handleEditClick(donor); }} title="Edit Donor Information">
                           ✍️
                         </button>
-                        <button className="action-btn delete-btn" data-id={donor.id} title="Delete Donor Profile">
-                          🗑️
-                        </button>
+                        {user && user.role !== 'staff' && (
+                          <button className="action-btn delete-btn" onClick={(e) => { e.stopPropagation(); handleDeleteClick(donor); }} title="Delete Donor Profile">
+                            🗑️
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -494,6 +512,7 @@ function DonorRegistry({
 
       {/* View Donor Profile Drawer */}
       <DonorDrawer
+        user={user}
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
         donor={drawerDonor}
@@ -527,7 +546,7 @@ function DonorRegistry({
       />
       {/* Delete Confirmation Modal */}
       {donorToDelete && createPortal(
-        <div className="modal-overlay" style={{ zIndex: 9999 }}>
+        <div className="modal-backdrop show" style={{ zIndex: 9999 }}>
           <div className="modal-content" style={{ maxWidth: '400px' }}>
             <div className="modal-header">
               <h3 style={{ color: '#ef4444' }}>⚠️ Confirm Deletion</h3>

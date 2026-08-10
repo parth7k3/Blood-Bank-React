@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import { toast } from 'react-hot-toast';
 import { checkEligibility, getDiseaseScreeningResults, isSamePerson } from '../utils/helpers';
 import { printDonorCertificate as printEngine } from '../utils/print';
 import { api } from '../services/api';
@@ -78,16 +79,16 @@ function DonorDrawer({ isOpen, onClose, donor, donors, onEditClick }) {
 
   const handleSendSMS = async () => {
     if (!donor.contact) {
-      alert("No phone number available for this donor.");
+      toast.error("No phone number available for this donor.");
       return;
     }
     const msg = prompt(`Enter SMS message for ${donor.name}:`, "Emergency Blood Required at Vardaan Blood Centre. Please contact us.");
     if (msg) {
       try {
         await api.sendSMS(donor.contact, msg);
-        alert("SMS Sent Successfully!");
+        toast.success("SMS Sent Successfully!");
       } catch (err) {
-        alert("Failed to send SMS.");
+        toast.error("Failed to send SMS.");
       }
     }
   };

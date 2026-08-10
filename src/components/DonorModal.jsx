@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { api } from '../services/api';
+import { toast } from 'react-hot-toast';
 
 function DonorModal({ isOpen, onClose, onSave, donor, camps = [], donors = [] }) {
   const [srNo, setSrNo] = useState('');
@@ -137,6 +138,31 @@ function DonorModal({ isOpen, onClose, onSave, donor, camps = [], donors = [] })
     setShowNameSuggestions(false);
   };
 
+  const handlePhoneLookup = async () => {
+    if (donor || !contact || contact.trim().length < 5) return;
+    try {
+      const match = await api.lookupDonorByPhone(contact.trim());
+      if (match) {
+        if (window.confirm(`Found previous donor record for ${match.name}. Auto-fill their details?`)) {
+          handleSelectDonor(match);
+        }
+      }
+    } catch (err) {
+      console.error("Phone lookup failed:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   const handleDiseaseCheckbox = (key) => {
     setDiseases(prev => ({
       ...prev,
@@ -158,7 +184,7 @@ function DonorModal({ isOpen, onClose, onSave, donor, camps = [], donors = [] })
       diseasesStr = list.join(', ');
 
       if (list.length === 0) {
-        alert("Please specify at least one positive transmissible disease.");
+        toast.error("Please specify at least one positive transmissible disease.");
         return;
       }
     }
@@ -384,6 +410,7 @@ function DonorModal({ isOpen, onClose, onSave, donor, camps = [], donors = [] })
                   className="form-control" 
                   value={contact}
                   onChange={(e) => setContact(e.target.value)}
+                  onBlur={handlePhoneLookup}
                   placeholder="e.g. 9876543210"
                 />
               </div>

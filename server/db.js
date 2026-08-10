@@ -129,6 +129,23 @@ const db = new sqlite3.Database(dbPath, (err) => {
             });
         }
       });
+
+      // Insert default manager user if none exists
+      db.get(`SELECT * FROM users WHERE role = ?`, ['manager'], (err, row) => {
+        if (!row) {
+          const salt = bcrypt.genSaltSync(10);
+          const hash = bcrypt.hashSync('manager123', salt);
+          db.run(`INSERT INTO users (username, password, role) VALUES (?, ?, ?)`, 
+            ['manager', hash, 'manager'], 
+            (insertErr) => {
+              if (insertErr) {
+                console.error('Error creating default manager', insertErr);
+              } else {
+                console.log('Created default manager user: manager / manager123');
+              }
+            });
+        }
+      });
     });
   }
 });

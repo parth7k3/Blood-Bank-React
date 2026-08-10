@@ -1795,3 +1795,29 @@ body.light-theme .autocomplete-item {
 body.light-theme .autocomplete-item:hover {
   background: rgba(225, 29, 72, 0.05);
 }
+/* UX Enhancements - Row Highlighting */
+.row-eligible-glow {
+  border-left: 4px solid var(--success) !important;
+  background-color: rgba(16, 185, 129, 0.02) !important;
+}
+.row-recent-glow {
+  border-left: 4px solid var(--danger) !important;
+  background-color: rgba(239, 68, 68, 0.02) !important;
+}
+
+/* Skeleton Loader */
+.skeleton-row td {
+  padding: 1rem;
+}
+.skeleton-box {
+  background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.05) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s infinite;
+  height: 20px;
+  border-radius: 4px;
+  width: 100%;
+}
+@keyframes skeleton-loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}

@@ -5,9 +5,11 @@ import DonorRegistry from './components/DonorRegistry';
 import ImportExport from './components/ImportExport';
 import Camps from './components/Camps';
 import AdminLogs from './components/AdminLogs';
+import StaffDirectory from './components/StaffDirectory';
 import { api } from './services/api';
 import { useDonors } from './hooks/useDonors';
 import { getFinancialYear } from './utils/helpers';
+import { Toaster } from 'react-hot-toast';
 
 function App() {
   const [user, setUser] = useState(() => {
@@ -77,6 +79,28 @@ function App() {
     fetchSysInfo();
   }, []);
 
+  // Global Keyboard Shortcuts
+  useEffect(() => {
+    const handleGlobalKeydown = (e) => {
+      // Ctrl+F or Cmd+F to focus search
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        if (activeTab !== 'registry') {
+          setActiveTab('registry');
+        }
+        // Small delay to allow tab to render if it wasn't active
+        setTimeout(() => {
+          const searchInput = document.querySelector('.search-input');
+          if (searchInput) {
+            searchInput.focus();
+            e.preventDefault();
+          }
+        }, 100);
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeydown);
+    return () => window.removeEventListener('keydown', handleGlobalKeydown);
+  }, [activeTab]);
+
   // Handle body theme changes
   useEffect(() => {
     if (theme === 'light') {
@@ -112,7 +136,7 @@ function App() {
   // Reset database handler
   const handleResetDatabase = async () => {
     if (!user) {
-      alert("Please login as Admin to reset the database.");
+      toast.error("Please login as Admin to reset the database.");
       setIsLoginOpen(true);
       return;
     }
@@ -129,7 +153,7 @@ function App() {
     try {
       await resetDatabase(resetPassword);
       setIsResetModalOpen(false);
-      alert("Database reset successfully.");
+      toast.success("Database reset successfully.");
     } catch (err) {
       setResetError(err.message || "Invalid password");
     }
@@ -182,8 +206,9 @@ function App() {
       setRegisterPassword('');
       setOtpCode('');
       setOtpStep(false);
+      setRegisterMessage('');
       setAuthTab('login');
-      alert("Registration successful! You are now logged in.");
+      toast.success("Registration successful! You are now logged in.");
     } catch (err) {
       setRegisterError(err.message || 'Invalid OTP');
       if (err.message && (err.message.toLowerCase().includes('expired') || err.message.toLowerCase().includes('pending'))) {
@@ -214,9 +239,10 @@ function App() {
       setRecoverUsername('');
       setRecoverPassword('');
       setRecoverOtpCode('');
+      setRecoverMessage('');
       setRecoverOtpStep(false);
       setAuthTab('login');
-      alert("Password reset successfully! You can now log in.");
+      toast.success("Password reset successfully! You can now log in.");
     } catch (err) {
       setRecoverError(err.message || 'Failed to reset password');
       if (err.message && (err.message.toLowerCase().includes('expired') || err.message.toLowerCase().includes('pending'))) {
@@ -329,7 +355,8 @@ function App() {
           </span>
         </div>
       )}
-      <div className="app-container">
+      <div className={`app-container ${theme}-theme`}>
+      <Toaster position="bottom-right" />
       {/* Sidebar navigation */}
       <Sidebar 
         activeTab={activeTab}
@@ -386,6 +413,9 @@ function App() {
 
         {activeTab === 'logs' && user && user.role === 'admin' && (
           <AdminLogs />
+        )}
+        {activeTab === 'staff' && user && user.role === 'admin' && (
+          <StaffDirectory currentUser={user} />
         )}
       </main>
 
