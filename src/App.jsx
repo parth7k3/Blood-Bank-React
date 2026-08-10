@@ -113,20 +113,22 @@ function App() {
 
   const [uniqueFYs, setUniqueFYs] = useState([]);
 
-  // Fetch unique financial years dynamically
-  useEffect(() => {
-    async function loadFys() {
-      if (user) {
-        try {
-          const fys = await api.getFinancialYears();
-          setUniqueFYs(fys);
-        } catch (err) {
-          console.error(err);
-        }
+  const loadFys = useCallback(async () => {
+    if (user) {
+      try {
+        const fys = await api.getFinancialYears();
+        setUniqueFYs(fys);
+        return fys;
+      } catch (err) {
+        console.error(err);
       }
     }
-    loadFys();
+    return [];
   }, [user]);
+
+  useEffect(() => {
+    loadFys();
+  }, [loadFys]);
 
   // Toggle Theme helper
   const handleToggleTheme = () => {
@@ -260,7 +262,11 @@ function App() {
 
   // Wrappers to automatically select/sync the active financial year on new data entry or import
   const handleAddDonor = useCallback(async (donorData) => {
-    const newDonor = await addDonor(donorData);
+    const payload = {
+      ...donorData,
+      financialYear: donorData.financialYear || getFinancialYear(donorData.lastDonationDate || new Date())
+    };
+    const newDonor = await addDonor(payload);
     if (newDonor && newDonor.financialYear) {
       setFinancialYear(newDonor.financialYear);
     }
@@ -286,12 +292,13 @@ function App() {
         if (d.financialYear) fySet.add(d.financialYear);
       });
       const sortedFYs = Array.from(fySet).sort((a, b) => b.localeCompare(a));
+      await loadFys();
       if (sortedFYs.length > 0) {
         setFinancialYear(sortedFYs[0]);
       }
     }
     return result;
-  }, [processImportedDonorsList]);
+  }, [processImportedDonorsList, loadFys]);
 
   // Handle Dashboard stat card redirection
   const handleNavigateToRegistry = useCallback((filters) => {
@@ -383,11 +390,13 @@ function App() {
 
         {activeTab === 'registry' && (
           <DonorRegistry 
-            camps={camps}
+            camps={camps} 
+            addDonor={handleAddDonor} 
+            updateDonor={handleUpdateDonor} 
+            deleteDonor={deleteDonor} 
             financialYear={financialYear}
-            addDonor={handleAddDonor}
-            updateDonor={handleUpdateDonor}
-            deleteDonor={deleteDonor}
+            setFinancialYear={setFinancialYear}
+            refreshFys={loadFys}
             user={user}
             onLoginClick={() => setIsLoginOpen(true)}
             registryFilters={registryFilters}

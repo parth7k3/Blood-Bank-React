@@ -6,6 +6,8 @@ import DonorDrawer from './DonorDrawer';
 
 function DonorRegistry({
   financialYear,
+  setFinancialYear,
+  refreshFys,
   addDonor,
   updateDonor,
   deleteDonor,
@@ -198,7 +200,10 @@ function DonorRegistry({
       await updateDonor(selectedDonor.dbId || selectedDonor.id, formData, true);
     } else {
       // Add
-      await addDonor(formData);
+      const newD = await addDonor(formData);
+      if (newD && refreshFys) {
+        await refreshFys();
+      }
     }
     setIsModalOpen(false);
     if (loadDonorsRef.current) loadDonorsRef.current();
