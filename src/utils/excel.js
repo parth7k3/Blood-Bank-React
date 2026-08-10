@@ -95,9 +95,10 @@ export async function handleExcelImport(arrayBuffer) {
       const row = worksheet.getRow(r);
       row.eachCell(cell => {
         const valStr = String(cell.value || '');
-        const match = valStr.match(/\b(\d{4})\s*-\s*(\d{2})\b/);
+        const match = valStr.match(/\b(\d{4})\s*-\s*(\d{2,4})\b/);
         if (match) {
-          const fyStr = `${match[1]}-${match[2]}`;
+          const suffix = match[2].length === 4 ? match[2].slice(-2) : match[2];
+          const fyStr = `${match[1]}-${suffix}`;
           if (cell.col <= 14) {
             leftFY = fyStr;
           } else {

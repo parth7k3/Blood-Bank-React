@@ -81,8 +81,19 @@ export function parseExcelDate(cell) {
     return `${y}-${m}-${d}`;
   }
 
+  // If numeric (Excel serial date)
+  if (typeof val === 'number') {
+    const date = new Date(Math.round((val - 25569) * 864e5));
+    if (!isNaN(date)) {
+      const y = date.getUTCFullYear();
+      const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+      const d = String(date.getUTCDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+  }
+
   const str = String(val || '').trim();
-  if (!str || str.toLowerCase() === 'prev.' || str.toLowerCase() === 'current' || str.toLowerCase() === 'date') return '';
+  if (!str || str.toLowerCase() === 'prev.' || str.toLowerCase() === 'current' || str.toLowerCase() === 'date' || str.toLowerCase() === 'never') return '';
 
   // 1. Handle YYYY-MM-DD or YYYY/MM/DD or YYYY.MM.DD
   const isoMatch = str.match(/^(\d{4})[-/.](\d{2})[-/.](\d{2})/);
@@ -149,7 +160,7 @@ export function computeFY(year, month) {
 }
 
 export function getFinancialYear(dateStr, fallbackYear) {
-  if (!dateStr) {
+  if (!dateStr || dateStr.toLowerCase() === 'never') {
     if (fallbackYear) return fallbackYear;
     const today = new Date();
     return computeFY(today.getFullYear(), today.getMonth() + 1);
@@ -159,7 +170,10 @@ export function getFinancialYear(dateStr, fallbackYear) {
   if (match) {
     return computeFY(parseInt(match[1], 10), parseInt(match[2], 10));
   }
-  return fallbackYear || '2025-26';
+  
+  if (fallbackYear) return fallbackYear;
+  const today = new Date();
+  return computeFY(today.getFullYear(), today.getMonth() + 1);
 }
 
 export function getNormalizedRelativeName(name) {
