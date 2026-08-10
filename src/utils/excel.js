@@ -162,7 +162,7 @@ export async function handleExcelImport(arrayBuffer) {
         const genderCell = getValueByHeader('gender');
         const contactCell = getValueByHeader('contact') || getValueByHeader('phone');
         const emailCell = getValueByHeader('email');
-        const dateCell = getValueByHeader('date') || getValueByHeader('last donation');
+        const dateCell = getValueByHeader('date') || getValueByHeader('last donation') || getValueByHeader('dod') || getValueByHeader('d.o.d') || getValueByHeader('donated');
         const diseasesCell = getValueByHeader('diseases') || getValueByHeader('screening');
         const notesCell = getValueByHeader('notes');
         const fyCell = getValueByHeader('fy') || getValueByHeader('financial');
@@ -239,7 +239,7 @@ export function handleCSVImport(fileContent) {
   const genderIdx = headers.findIndex(h => h.includes('gender'));
   const contactIdx = headers.findIndex(h => h.includes('contact'));
   const emailIdx = headers.findIndex(h => h.includes('email'));
-  const dateIdx = headers.findIndex(h => h.includes('last donation') || h.includes('date'));
+  const dateIdx = headers.findIndex(h => h.includes('last donation') || h.includes('date') || h.includes('dod') || h.includes('d.o.d') || h.includes('donated'));
   const diseasesIdx = headers.findIndex(h => h.includes('diseases list') || h.includes('diseases'));
   const notesIdx = headers.findIndex(h => h.includes('notes'));
   const fyIdx = headers.findIndex(h => h.includes('financial year') || h.includes('fy'));

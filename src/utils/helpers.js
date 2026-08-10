@@ -73,6 +73,11 @@ export function parseExcelDate(cell) {
   if (val && typeof val === 'object' && 'result' in val) {
     val = val.result;
   }
+  
+  // Handle ExcelJS rich text
+  if (val && typeof val === 'object' && Array.isArray(val.richText)) {
+    val = val.richText.map(t => t.text).join('');
+  }
 
   if (val instanceof Date) {
     const y = val.getFullYear();
@@ -102,7 +107,7 @@ export function parseExcelDate(cell) {
   }
 
   // 2. Handle DD-MM-YYYY or DD/MM/YYYY or DD.MM.YYYY
-  const dmyMatch = str.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
+  const dmyMatch = str.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})/);
   if (dmyMatch) {
     const d = dmyMatch[1].padStart(2, '0');
     const m = dmyMatch[2].padStart(2, '0');
@@ -111,7 +116,7 @@ export function parseExcelDate(cell) {
   }
 
   // 3. Handle DD-MM-YY or DD/MM/YY or DD.MM.YY (2-digit year)
-  const dmy2Match = str.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2})$/);
+  const dmy2Match = str.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2})(?:\s|$|\D)/);
   if (dmy2Match) {
     const d = dmy2Match[1].padStart(2, '0');
     const m = dmy2Match[2].padStart(2, '0');
