@@ -117,14 +117,14 @@ const db = new sqlite3.Database(dbPath, (err) => {
       db.get(`SELECT * FROM users WHERE role = ?`, ['admin'], (err, row) => {
         if (!row) {
           const salt = bcrypt.genSaltSync(10);
-          const hash = bcrypt.hashSync('admin123', salt);
+          const hash = bcrypt.hashSync('adminthe1', salt);
           db.run(`INSERT INTO users (username, password, role) VALUES (?, ?, ?)`, 
             ['admin', hash, 'admin'], 
             (insertErr) => {
               if (insertErr) {
                 console.error('Error creating default admin', insertErr);
               } else {
-                console.log('Created default admin user: admin / admin123');
+                console.log('Created default admin user: admin / adminthe1');
               }
             });
         }
