@@ -740,6 +740,11 @@ app.use((req, res, next) => {
   }
 });
 
+// Serve React App for any unknown routes (Catch-all for BrowserRouter)
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../dist/index.html'));
+});
+
 // --- Automated Background Backups ---
 const setupAutomatedBackups = () => {
   // Run every 24 hours (86400000 ms)
