@@ -741,8 +741,12 @@ app.use((req, res, next) => {
 });
 
 // Serve React App for any unknown routes (Catch-all for BrowserRouter)
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../dist/index.html'));
+app.use((req, res, next) => {
+  if (req.method === 'GET') {
+    res.sendFile(path.join(__dirname, '../dist/index.html'));
+  } else {
+    next();
+  }
 });
 
 // --- Automated Background Backups ---
