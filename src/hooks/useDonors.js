@@ -110,10 +110,20 @@ export function useDonors(user) {
   const processImportedDonorsList = useCallback(async (parsedImport) => {
     try {
       const result = await api.bulkImportDonors(parsedImport);
-      return { addedCount: result.count, mergedCount: 0 };
+      try {
+        const updatedCamps = await api.getCamps();
+        setCamps(updatedCamps);
+      } catch (campErr) {
+        console.error("Failed to refresh camps after import:", campErr);
+      }
+      return { 
+        addedCount: result.count, 
+        mergedCount: 0, 
+        campsCreated: result.campsCreated || 0 
+      };
     } catch (err) {
       console.error("Bulk import failed:", err);
-      return { addedCount: 0, mergedCount: 0 };
+      return { addedCount: 0, mergedCount: 0, campsCreated: 0 };
     }
   }, []);
 

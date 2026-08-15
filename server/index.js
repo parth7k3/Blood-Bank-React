@@ -339,30 +339,148 @@ app.get('/api/auth/me', authenticateToken, (req, res) => {
   res.json({ user: req.user });
 });
 
-// Add bulk import donors
+const ensureCampExists = (campName, campDate, callback) => {
+  if (!campName || typeof campName !== 'string' || !campName.trim()) {
+    if (callback) callback();
+    return;
+  }
+  const cleanName = campName.trim();
+  db.get(`SELECT id, date FROM camps WHERE LOWER(TRIM(name)) = LOWER(?)`, [cleanName], (err, row) => {
+    if (err) {
+      if (callback) callback(err);
+      return;
+    }
+    if (!row) {
+      const status = campDate 
+        ? (new Date(campDate) > new Date() ? 'upcoming' : 'completed') 
+        : 'completed';
+      db.run(`INSERT INTO camps (name, location, date, status) VALUES (?, ?, ?, ?)`, 
+        [cleanName, '', campDate || '', status], 
+        (insertErr) => {
+          if (callback) callback(insertErr);
+        });
+    } else {
+      if (!row.date && campDate) {
+        db.run(`UPDATE camps SET date = ? WHERE id = ?`, [campDate, row.id], (updateErr) => {
+          if (callback) callback(updateErr);
+        });
+      } else {
+        if (callback) callback();
+      }
+    }
+  });
+};
+
+// Add bulk import donors with automatic Blood Camp creation
 app.post('/api/donors/bulk', authenticateToken, (req, res) => {
   const { donors } = req.body;
   if (!Array.isArray(donors)) return res.status(400).json({ error: 'Expected array of donors' });
 
-  // Use a transaction for bulk insert
-  db.serialize(() => {
-    db.run("BEGIN TRANSACTION");
-    const stmt = db.prepare(`INSERT INTO donors (donorId, name, relativeName, age, gender, bloodGroup, contact, email, address, lastDonationDate, diseasePositive, diseases, notes, financialYear, donationHistory, camp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-    
-    donors.forEach(donor => {
-      stmt.run(
-        donor.id || null, donor.name, donor.relativeName, donor.age, donor.gender, donor.bloodGroup, donor.contact, donor.email, donor.address, donor.lastDonationDate, donor.diseasePositive, donor.diseases, donor.notes, donor.financialYear, donor.donationHistory ? JSON.stringify(donor.donationHistory) : null, donor.camp
-      );
-    });
-    
-    stmt.finalize();
-    db.run("COMMIT", (err) => {
-      if (err) {
-        console.error("Bulk insert failed:", err);
-        return res.status(500).json({ error: 'Bulk insert failed' });
+  // 1. Gather all distinct camps and their associated donation date from the import list
+  const campMap = new Map();
+  donors.forEach(d => {
+    if (d.camp && typeof d.camp === 'string' && d.camp.trim()) {
+      const cleanName = d.camp.trim();
+      const key = cleanName.toLowerCase();
+      const dateVal = d.lastDonationDate || d.date || '';
+      if (!campMap.has(key)) {
+        campMap.set(key, { name: cleanName, date: dateVal });
+      } else if (!campMap.get(key).date && dateVal) {
+        campMap.set(key, { ...campMap.get(key), date: dateVal });
       }
-      insertLog(req.user.username, 'BULK_IMPORT', `Imported ${donors.length} donors`);
-      res.json({ success: true, count: donors.length });
+    }
+  });
+
+  // 2. Query existing camps to determine which ones need creation or date update
+  db.all(`SELECT id, name, date FROM camps`, [], (err, existingCamps) => {
+    if (err) {
+      console.error("Failed to query existing camps:", err);
+      return res.status(500).json({ error: 'Failed to verify camps before bulk import' });
+    }
+
+    const existingMap = new Map();
+    (existingCamps || []).forEach(c => {
+      if (c.name) existingMap.set(c.name.trim().toLowerCase(), c);
+    });
+
+    const campsToInsert = [];
+    const campsToUpdateDate = [];
+
+    for (const [key, campInfo] of campMap.entries()) {
+      if (!existingMap.has(key)) {
+        const status = campInfo.date 
+          ? (new Date(campInfo.date) > new Date() ? 'upcoming' : 'completed')
+          : 'completed';
+        campsToInsert.push({ name: campInfo.name, date: campInfo.date || '', status });
+      } else {
+        const existing = existingMap.get(key);
+        if (!existing.date && campInfo.date) {
+          campsToUpdateDate.push({ id: existing.id, date: campInfo.date });
+        }
+      }
+    }
+
+    // 3. Use a transaction for inserting camps and donors
+    db.serialize(() => {
+      db.run("BEGIN TRANSACTION");
+
+      // Auto-create newly found camps
+      if (campsToInsert.length > 0) {
+        const campStmt = db.prepare(`INSERT INTO camps (name, location, date, status) VALUES (?, ?, ?, ?)`);
+        campsToInsert.forEach(c => {
+          campStmt.run(c.name, '', c.date, c.status);
+        });
+        campStmt.finalize();
+      }
+
+      // Update missing dates on existing camps if date provided in import
+      if (campsToUpdateDate.length > 0) {
+        const updateCampStmt = db.prepare(`UPDATE camps SET date = ? WHERE id = ?`);
+        campsToUpdateDate.forEach(c => {
+          updateCampStmt.run(c.date, c.id);
+        });
+        updateCampStmt.finalize();
+      }
+
+      // Insert all donors
+      const donorStmt = db.prepare(`INSERT INTO donors (donorId, name, relativeName, age, gender, bloodGroup, contact, email, address, lastDonationDate, diseasePositive, diseases, notes, financialYear, donationHistory, camp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+      
+      donors.forEach(donor => {
+        let history = donor.donationHistory;
+        if (!history && donor.lastDonationDate) {
+          history = [{ date: donor.lastDonationDate, camp: donor.camp || '', ...donor }];
+        }
+        donorStmt.run(
+          donor.id || null, 
+          donor.name, 
+          donor.relativeName, 
+          donor.age, 
+          donor.gender, 
+          donor.bloodGroup, 
+          donor.contact, 
+          donor.email, 
+          donor.address, 
+          donor.lastDonationDate, 
+          donor.diseasePositive ? 1 : 0, 
+          donor.diseases, 
+          donor.notes, 
+          donor.financialYear, 
+          history ? JSON.stringify(history) : null, 
+          donor.camp || null
+        );
+      });
+      
+      donorStmt.finalize();
+
+      db.run("COMMIT", (commitErr) => {
+        if (commitErr) {
+          console.error("Bulk insert failed:", commitErr);
+          return res.status(500).json({ error: 'Bulk insert failed' });
+        }
+        const createdCount = campsToInsert.length;
+        insertLog(req.user.username, 'BULK_IMPORT', `Imported ${donors.length} donors${createdCount > 0 ? ` and auto-created ${createdCount} blood camps` : ''}`);
+        res.json({ success: true, count: donors.length, campsCreated: createdCount });
+      });
     });
   });
 });
@@ -570,6 +688,8 @@ app.get('/api/donors/export', authenticateToken, (req, res) => {
 app.post('/api/donors', authenticateToken, (req, res) => {
   const { id, name, relativeName, age, gender, bloodGroup, contact, email, address, lastDonationDate, diseasePositive, diseases, notes, financialYear, donationHistory, camp } = req.body;
   
+  ensureCampExists(camp, lastDonationDate);
+
   db.run(`INSERT INTO donors (donorId, name, relativeName, age, gender, bloodGroup, contact, email, address, lastDonationDate, diseasePositive, diseases, notes, financialYear, donationHistory, camp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [id, name, relativeName, age, gender, bloodGroup, contact, email, address, lastDonationDate, diseasePositive, diseases, notes, financialYear, donationHistory ? JSON.stringify(donationHistory) : null, camp],
     function(err) {
@@ -584,6 +704,8 @@ app.put('/api/donors/:id', authenticateToken, (req, res) => {
   const isNumeric = !isNaN(parseInt(donorIdParam)) && parseInt(donorIdParam).toString() === donorIdParam.toString();
   const { name, relativeName, age, gender, bloodGroup, contact, email, address, lastDonationDate, diseasePositive, diseases, notes, financialYear, donationHistory, camp } = req.body;
   
+  ensureCampExists(camp, lastDonationDate);
+
   const sql = isNumeric 
     ? `UPDATE donors SET name = ?, relativeName = ?, age = ?, gender = ?, bloodGroup = ?, contact = ?, email = ?, address = ?, lastDonationDate = ?, diseasePositive = ?, diseases = ?, notes = ?, financialYear = ?, donationHistory = ?, camp = ? WHERE id = ?`
     : `UPDATE donors SET name = ?, relativeName = ?, age = ?, gender = ?, bloodGroup = ?, contact = ?, email = ?, address = ?, lastDonationDate = ?, diseasePositive = ?, diseases = ?, notes = ?, financialYear = ?, donationHistory = ?, camp = ? WHERE donorId = ?`;
@@ -618,7 +740,7 @@ app.get('/api/camps', authenticateToken, (req, res) => {
   });
 });
 
-app.post('/api/camps', authenticateToken, requireAdmin, (req, res) => {
+app.post('/api/camps', authenticateToken, requireManagerOrAdmin, (req, res) => {
   const { name, location, date, status } = req.body;
   
   db.run(`INSERT INTO camps (name, location, date, status) VALUES (?, ?, ?, ?)`,
@@ -630,7 +752,7 @@ app.post('/api/camps', authenticateToken, requireAdmin, (req, res) => {
     });
 });
 
-app.put('/api/camps/:id', authenticateToken, requireAdmin, (req, res) => {
+app.put('/api/camps/:id', authenticateToken, requireManagerOrAdmin, (req, res) => {
   const { name, location, date, status } = req.body;
   
   db.run(`UPDATE camps SET name = ?, location = ?, date = ?, status = ? WHERE id = ?`,
@@ -642,7 +764,7 @@ app.put('/api/camps/:id', authenticateToken, requireAdmin, (req, res) => {
     });
 });
 
-app.delete('/api/camps/:id', authenticateToken, requireAdmin, (req, res) => {
+app.delete('/api/camps/:id', authenticateToken, requireManagerOrAdmin, (req, res) => {
   db.run(`DELETE FROM camps WHERE id = ?`, [req.params.id], function(err) {
     if (err) return res.status(500).json({ error: err.message });
     insertLog(req.user.username, 'DELETE_CAMP', `Deleted camp ID: ${req.params.id}`);

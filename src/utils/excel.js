@@ -9,7 +9,7 @@ import {
   getFinancialYear, 
   getDiseaseScreeningResults,
   filterDonationsByDateRange
-} from './helpers';
+} from './helpers.js';
 
 export async function handleExcelImport(arrayBuffer) {
   const workbook = new ExcelJS.Workbook();
@@ -67,6 +67,7 @@ export async function handleExcelImport(arrayBuffer) {
       }
 
       const dateStr = parseExcelDate(row.getCell(cols.date));
+      const campVal = cols.camp ? cleanString(row.getCell(cols.camp).value) : '';
       
       return {
         name,
@@ -81,14 +82,15 @@ export async function handleExcelImport(arrayBuffer) {
         diseasePositive: reactiveTests.length > 0,
         diseases: reactiveTests.join(', '),
         notes: '',
-        financialYear: getFinancialYear(dateStr, defaultFY)
+        financialYear: getFinancialYear(dateStr, defaultFY),
+        camp: campVal
       };
     };
 
     const leftCols = { sr: 1, name: 2, address: 3, contact: 4, blood: 5, hiv: 6, hcv: 7, hbsag: 8, vdrl: 9, mp: 10, date: 11 };
     const rightCols = { sr: 15, name: 16, relative: 17, address: 18, contact: 19, blood: 20, hiv: 21, hcv: 22, hbsag: 23, vdrl: 24, mp: 25, date: 26 };
 
-    // Dynamically detect Left and Right Financial Years from spreadsheet titles/headers (rows 1-3)
+    // Dynamically detect Left and Right Financial Years & Camp columns from spreadsheet titles/headers (rows 1-3)
     let leftFY = '2024-25';
     let rightFY = '2025-26';
     for (let r = 1; r <= 3; r++) {
@@ -103,6 +105,14 @@ export async function handleExcelImport(arrayBuffer) {
             leftFY = fyStr;
           } else {
             rightFY = fyStr;
+          }
+        }
+        const lowerVal = valStr.toLowerCase().trim();
+        if (lowerVal.includes('camp') || lowerVal.includes('venue')) {
+          if (cell.col <= 14) {
+            leftCols.camp = cell.col;
+          } else {
+            rightCols.camp = cell.col;
           }
         }
       });
@@ -168,6 +178,7 @@ export async function handleExcelImport(arrayBuffer) {
         const fyCell = getValueByHeader('fy') || getValueByHeader('financial');
         const fatherCell = getValueByHeader('father') || getValueByHeader('husband') || getValueByHeader('relative') || getValueByHeader('f/h');
         const addrCell = getValueByHeader('address') || getValueByHeader('city') || getValueByHeader('location');
+        const campCell = getValueByHeader('camp') || getValueByHeader('venue');
 
         const dateVal = dateCell ? parseExcelDate(dateCell) : '';
         const parsedFY = fyCell ? cleanString(fyCell.value) : getFinancialYear(dateVal);
@@ -212,7 +223,8 @@ export async function handleExcelImport(arrayBuffer) {
           diseasePositive: isDisPos,
           diseases: diseasesVal,
           notes: notesCell ? cleanString(notesCell.value) : '',
-          financialYear: parsedFY
+          financialYear: parsedFY,
+          camp: campCell ? cleanString(campCell.value) : ''
         });
       }
     });
@@ -245,6 +257,7 @@ export function handleCSVImport(fileContent) {
   const fyIdx = headers.findIndex(h => h.includes('financial year') || h.includes('fy'));
   const fatherIdx = headers.findIndex(h => h.includes('father') || h.includes('husband') || h.includes('relative') || h.includes('f/h'));
   const idIdx = headers.findIndex(h => h === 'id' || h === 'donor id' || h === 'sr' || h === 'sr no' || h === 's.no' || h === 's/n');
+  const campIdx = headers.findIndex(h => h.includes('camp') || h.includes('venue'));
 
   const parsedImport = [];
 
@@ -284,7 +297,8 @@ export function handleCSVImport(fileContent) {
       diseases: cleanD,
       notes: notesIdx !== -1 ? row[notesIdx].trim() : '',
       relativeName: fatherIdx !== -1 ? row[fatherIdx].trim() : '',
-      financialYear: parsedFY
+      financialYear: parsedFY,
+      camp: campIdx !== -1 && row[campIdx] ? row[campIdx].trim() : ''
     });
   }
 
@@ -316,7 +330,8 @@ export function handleJSONImport(fileContent) {
         diseasePositive: cleanD !== '',
         diseases: cleanD,
         notes: item.notes ? String(item.notes).trim() : '',
-        financialYear: parsedFY
+        financialYear: parsedFY,
+        camp: item.camp ? String(item.camp).trim() : (item.campName ? String(item.campName).trim() : '')
       });
     }
   });
@@ -336,6 +351,7 @@ export async function exportToExcel(filteredList, startDate, endDate) {
     { header: 'Age', key: 'age', width: 8 },
     { header: 'Gender', key: 'gender', width: 10 },
     { header: 'Blood Group', key: 'bloodGroup', width: 12 },
+    { header: 'Blood Camp', key: 'camp', width: 22 },
     { header: 'Contact No', key: 'contact', width: 15 },
     { header: 'Email Address', key: 'email', width: 25 },
     { header: 'Address', key: 'address', width: 35 },
@@ -354,7 +370,7 @@ export async function exportToExcel(filteredList, startDate, endDate) {
   worksheet.insertRow(2, ['A Unit of Jansiksha Foundation | Donor Database Report']);
   worksheet.insertRow(3, []);
 
-  worksheet.mergeCells('A1:S1');
+  worksheet.mergeCells('A1:T1');
   const titleRow = worksheet.getRow(1);
   titleRow.getCell(1).font = { name: 'Outfit', bold: true, size: 16, color: { argb: 'FFFFFFFF' } };
   titleRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
@@ -365,7 +381,7 @@ export async function exportToExcel(filteredList, startDate, endDate) {
   };
   titleRow.height = 35;
 
-  worksheet.mergeCells('A2:S2');
+  worksheet.mergeCells('A2:T2');
   const subtitleRow = worksheet.getRow(2);
   subtitleRow.getCell(1).font = { name: 'Inter', italic: true, size: 11, color: { argb: 'FF475569' } };
   subtitleRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
@@ -390,6 +406,7 @@ export async function exportToExcel(filteredList, startDate, endDate) {
       age: d.age,
       gender: d.gender,
       bloodGroup: d.bloodGroup,
+      camp: d.camp || '',
       contact: d.contact,
       email: d.email,
       address: d.address || '',
@@ -408,7 +425,7 @@ export async function exportToExcel(filteredList, startDate, endDate) {
   // Style header row 4
   const headerRow = worksheet.getRow(4);
   headerRow.height = 26;
-  for (let c = 1; c <= 19; c++) {
+  for (let c = 1; c <= 20; c++) {
     const cell = headerRow.getCell(c);
     cell.font = { name: 'Inter', bold: true, size: 10, color: { argb: 'FF334155' } };
     cell.fill = {
@@ -428,11 +445,11 @@ export async function exportToExcel(filteredList, startDate, endDate) {
       const rVal = worksheet.getRow(r);
       rVal.height = 20;
 
-      const isPos = rVal.getCell(12).value === 'Screen Positive';
+      const isPos = rVal.getCell(13).value === 'Screen Positive';
       const cellColor = isPos ? 'FFFEE2E2' : 'FFFFFFFF'; // Light Red background for disease positive entries
       const textColor = isPos ? 'FF991B1B' : 'FF334155';
 
-      for (let c = 1; c <= 19; c++) {
+      for (let c = 1; c <= 20; c++) {
         const cell = rVal.getCell(c);
         cell.font = { name: 'Inter', size: 10, color: { argb: textColor } };
         cell.fill = {
@@ -459,8 +476,8 @@ export async function exportToExcel(filteredList, startDate, endDate) {
 }
 
 export function downloadCSVTemplate() {
-  const headers = ['Name', 'Age', 'Gender', 'Blood Group', 'Contact', 'Email', 'Last Donation Date', 'Disease Positive (TRUE/FALSE)', 'Diseases List', 'Notes', 'Financial Year'];
-  const sampleRow = ['John Doe', '30', 'Male', 'O+', '9876543210', 'john@example.com', '2026-05-10', 'FALSE', '', 'Regular donor', '2026-27'];
+  const headers = ['Name', 'Father/Husband Name', 'Address', 'Age', 'Gender', 'Blood Group', 'Blood Camp', 'Contact', 'Email', 'Last Donation Date', 'Disease Positive (TRUE/FALSE)', 'Diseases List', 'Notes', 'Financial Year'];
+  const sampleRow = ['John Doe', 'Richard Doe', 'Main City Road', '30', 'Male', 'O+', 'College Blood Camp', '9876543210', 'john@example.com', '2026-05-10', 'FALSE', '', 'Regular donor', '2026-27'];
 
   const csvContent = [headers.join(','), sampleRow.join(',')].join('\n');
   return new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });

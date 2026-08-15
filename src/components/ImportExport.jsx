@@ -63,10 +63,11 @@ function ImportExport({ processImportedDonorsList }) {
         throw new Error("No valid donor records found in the uploaded file.");
       }
 
-      const { addedCount, mergedCount } = await processImportedDonorsList(parsedList);
+      const { addedCount, mergedCount, campsCreated } = await processImportedDonorsList(parsedList);
+      const campMsg = campsCreated > 0 ? ` and auto-created ${campsCreated} blood camp${campsCreated > 1 ? 's' : ''}` : '';
       setImportStatus({
         type: 'success',
-        text: `Processed ${parsedList.length} records. Added ${addedCount} new, merged ${mergedCount} duplicates!`
+        text: `Processed ${parsedList.length} records. Added ${addedCount} donors${campMsg}!`
       });
     } catch (err) {
       console.error(err);
